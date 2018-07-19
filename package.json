@@ -1,6 +1,6 @@
 {
   "name": "@mkeen/rxcouch",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Simple Change Notification RxJs CouchDB Client",
   "keywords": ["couchdb-client", "rxjs6", "rxjs", "angular6", "angular", "typescript", "javascript", "javascript-library", "npm-module", "couchdb"],
   "main": "dist/rxcouch.js",
