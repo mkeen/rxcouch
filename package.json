@@ -1,0 +1,27 @@
+{
+  "name": "@mkeen/rxcouch",
+  "version": "1.0.2",
+  "description": "Simple Change Notification RxJs CouchDB Client",
+  "keywords": ["couchdb-client", "rxjs6", "rxjs", "angular6", "angular", "typescript", "javascript", "javascript-library", "npm-module", "couchdb"],
+  "main": "dist/rxcouch.js",
+  "types": "dist/rxcouch.d.ts",
+  "repository": {
+    "type" : "git",
+    "url" : "https://github.com/mkeen/rxcouch"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc"
+  },
+  "author": "Mike Keen",
+  "license": "ISC",
+  "dependencies": {
+    "@mkeen/rxhttp": "^1.0.18",
+    "rxjs": "^6.2.2"
+  },
+  "devDependencies": {
+    "ts-loader": "4.4.1",
+    "awesome-typescript-loader": "^5.2.0",
+    "typescript": "^2.9.2"
+  }
+}
