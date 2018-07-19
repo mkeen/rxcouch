@@ -1,7 +1,7 @@
 # rxcouch
 Simple Change Notification RxJs CouchDB Client
 
-Interact with a CouchDB change stream via RxJs BehaviorSubjects. Supports typed responses via generics. Just tell the watcher what documents you're interested in, then create subscriptions to the documents themselves.
+Interact with a CouchDB change stream via RxJs BehaviorSubjects. Supports typed responses with generics. Just tell the watcher what documents you're interested in, then create subscriptions to the documents themselves.
 
 install: `npm install @mkeen/rxcouch`
 
