@@ -12,9 +12,7 @@ this.couch = new CouchWatcher('127.0.0.1', 5984, 'items');
 this.couch.documents.get("document_id_here")
   .subscribe((document) => {
     if (document['items']) {
-      this.loading.next(false);
-      this.categories.next(document['items']);
-      this.cdRef.detectChanges();
+      // Do as thou wilt
     }
   }
 );
