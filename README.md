@@ -11,8 +11,6 @@ ex:
 this.couch = new CouchWatcher('127.0.0.1', 5984, 'items');
 this.couch.documents.get("document_id_here")
   .subscribe((document) => {
-    if (document['items']) {
-      // Do as thou wilt
-    }
+    // It's a free country
   }
 );
