@@ -1,5 +1,5 @@
-import { Observable, BehaviorSubject, combineLatest } from 'rxjs';
-import { take, flatMap, map, filter, mergeAll } from 'rxjs/operators';
+import { Observable, BehaviorSubject, combineLatest, Subject, Observer } from 'rxjs';
+import { take, flatMap, map, filter, mergeAll, takeUntil } from 'rxjs/operators';
 import { HttpRequest } from '@mkeen/rxhttp';
 
 interface CouchDBChange {
@@ -86,8 +86,6 @@ export class CouchWatcher {
 
         });
 
-        console.log(config);
-
         this.connection = new HttpRequest<CouchDBChanges>(
           this.watchUrlFromConfig(config), {
             method: 'POST',
@@ -99,7 +97,7 @@ export class CouchWatcher {
 
         );
 
-        this.connection.send().subscribe(
+        this.connection.listen().subscribe(
           (update: CouchDBChanges) => {
             console.log("update", update);
             return this.documents.set(update.doc)
@@ -111,19 +109,18 @@ export class CouchWatcher {
 
   }
 
-  public view(designName: string, viewName: string): Observable<CouchDBDesignView> {
+  public view(designName: string, viewName: string): Observable<any> {
+    console.log("view");
     return this.config()
       .pipe(take(1))
       .pipe(map((config: [string[], string, string, number]) => {
-        return (new HttpRequest<CouchDBDesignView>(
+        return (new HttpRequest<any>(
           this.viewUrlFromConfig(config, designName, viewName), {
             method: 'GET'
           }
 
-        )).send();
+        )).get();
       }))
-      .pipe(mergeAll())
-      .pipe(take(1));
   }
 
   private config(): Observable<[string[], string, string, number]> {
