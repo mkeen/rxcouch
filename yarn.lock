@@ -96,9 +96,9 @@
     lodash "^4.17.5"
     to-fast-properties "^2.0.0"
 
-"@mkeen/rxhttp@^1.1.0":
-  version "1.1.0"
-  resolved "https://registry.yarnpkg.com/@mkeen/rxhttp/-/rxhttp-1.1.0.tgz#0a3f2b2d3c7ccbbb0630ea2088db91f0bb15e6cb"
+"@mkeen/rxhttp@^1.1.2":
+  version "1.1.2"
+  resolved "https://registry.yarnpkg.com/@mkeen/rxhttp/-/rxhttp-1.1.2.tgz#6a3c1f68d0c0bb48af68a78b73532b69dc89deaf"
   dependencies:
     rxjs "^6.2.2"
 

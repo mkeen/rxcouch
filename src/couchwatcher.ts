@@ -76,26 +76,34 @@ export class CouchWatcher {
     this.config()
       .subscribe((config: [string[], string, string, number]) => {
         if (this.connection) {
-          this.connection.cancel();
+          this.connection.cancel().subscribe(() => {
+            this.createDocuments(config[0]);
+            this.connection.configure(
+              this.watchUrlFromConfig(config), {
+                method: 'POST',
+                body: JSON.stringify({
+                  'doc_ids': config[0]
+                })
+
+              }
+
+            );
+
+          });
+
+        } else {
+          this.connection = new HttpRequest<CouchDBChanges>(
+            this.watchUrlFromConfig(config), {
+              method: 'POST',
+              body: JSON.stringify({
+                'doc_ids': config[0]
+              })
+
+            }
+
+          );
+
         }
-
-        config[0].forEach((document_id: string) => {
-          if (!this.documents.get(document_id)) {
-            this.documents.set({ '_id': document_id });
-          }
-
-        });
-
-        this.connection = new HttpRequest<CouchDBChanges>(
-          this.watchUrlFromConfig(config), {
-            method: 'POST',
-            body: JSON.stringify({
-              'doc_ids': config[0]
-            })
-
-          }
-
-        );
 
         this.connection.listen().subscribe(
           (update: CouchDBChanges) => {
@@ -107,6 +115,15 @@ export class CouchWatcher {
 
       });
 
+  }
+
+  private createDocuments(document_ids: string[]) {
+    document_ids.forEach((document_id: string) => {
+      if (!this.documents.get(document_id)) {
+        this.documents.set({ '_id': document_id });
+      }
+
+    });
   }
 
   public view(designName: string, viewName: string): Observable<any> {
