@@ -8,13 +8,9 @@ install: `npm install @mkeen/rxcouch`
 ex: 
 
 ```
-this.couch = new CouchWatcher('127.0.0.1', 5984, 'items', ["document_id_here"]);
+this.couch = new CouchWatcher('127.0.0.1', 5984, 'items');
 this.couch.documents.get("document_id_here")
   .subscribe((document) => {
-    if (document['items']) {
-      this.loading.next(false);
-      this.categories.next(document['items']);
-      this.cdRef.detectChanges();
-    }
+    // It's a free country
   }
 );
