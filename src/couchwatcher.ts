@@ -1,5 +1,5 @@
 import { Observable, BehaviorSubject, combineLatest, Subject, Observer } from 'rxjs';
-import { take, flatMap, map, filter, mergeAll, takeUntil } from 'rxjs/operators';
+import { take, flatMap, map, filter, mergeAll, takeUntil, distinctUntilChanged, debounceTime } from 'rxjs/operators';
 import { HttpRequest } from '@mkeen/rxhttp';
 
 interface CouchDBChange {
@@ -39,13 +39,18 @@ class CouchDBDocumentCollection {
     return this.documents[document._id];
   }
 
-  public get(id: string): BehaviorSubject<CouchDBDocument> {
-    return this.documents[id];
+  public get(id: string): BehaviorSubject<CouchDBDocument> | null {
+    if (this.documents[id] === undefined) {
+      return null;
+    } else {
+      return this.documents[id];
+    }
+
   }
 
   public set(document: any): BehaviorSubject<CouchDBDocument> {
     const doc = this.get(document['_id']);
-    if (doc !== undefined) {
+    if (doc !== null) {
       doc.next(document);
       return doc;
     } else {
@@ -57,27 +62,27 @@ class CouchDBDocumentCollection {
 }
 
 export class CouchWatcher {
-  private document_ids: BehaviorSubject<string[]> = new BehaviorSubject<string[]>([]);
-  private database_name: BehaviorSubject<string> = new BehaviorSubject<string>('');
-  private host: BehaviorSubject<string> = new BehaviorSubject<string>('127.0.0.1');
-  private port: BehaviorSubject<number> = new BehaviorSubject<number>(5984);
   public documents: CouchDBDocumentCollection = new CouchDBDocumentCollection();
+  private database_name: BehaviorSubject<string>;
+  private host: BehaviorSubject<string>;
+  private port: BehaviorSubject<number>;
   private connection: any;
 
   constructor(host: string, port: number, database_name: string) {
-    this.database_name.next(database_name);
-    this.port.next(port);
-    this.host.next(host);
-
-    this.documents.ids
-      .pipe(filter(ids => ids !== null))
-      .subscribe(ids => this.document_ids.next(ids));
+    this.database_name = new BehaviorSubject(database_name);
+    this.port = new BehaviorSubject(port);
+    this.host = new BehaviorSubject(host);
 
     this.config()
+      .pipe(distinctUntilChanged((a, b) => JSON.stringify(a) !== JSON.stringify(b)))
+      .pipe(filter((config: [string[], string, string, number]) => config[0].length !== 0))
+      .pipe(debounceTime(1000))
       .subscribe((config: [string[], string, string, number]) => {
-        if (this.connection) {
-          this.connection.cancel().subscribe(() => {
-            this.createDocuments(config[0]);
+        console.log("config came thru", config);
+        if (this.connection !== undefined) {
+          console.log("connga cancel");
+          this.connection.cancel().subscribe((_x: any) => { }, (_e: any) => { }, () => {
+            console.log("cancel emitted");
             this.connection.configure(
               this.watchUrlFromConfig(config), {
                 method: 'POST',
@@ -89,9 +94,11 @@ export class CouchWatcher {
 
             );
 
+            this.createDocuments(config[0]);
           });
 
         } else {
+          console.log("gonna establish", config);
           this.connection = new HttpRequest<CouchDBChanges>(
             this.watchUrlFromConfig(config), {
               method: 'POST',
@@ -127,7 +134,6 @@ export class CouchWatcher {
   }
 
   public view(designName: string, viewName: string): Observable<any> {
-    console.log("view");
     return this.config()
       .pipe(take(1))
       .pipe(map((config: [string[], string, string, number]) => {
@@ -141,7 +147,7 @@ export class CouchWatcher {
   }
 
   private config(): Observable<[string[], string, string, number]> {
-    return combineLatest(this.document_ids, this.database_name, this.host, this.port)
+    return combineLatest(this.documents.ids, this.database_name, this.host, this.port)
   }
 
   private watchUrlFromConfig(config: [string[], string, string, number]): string {
