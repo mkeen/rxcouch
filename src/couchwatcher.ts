@@ -1,65 +1,15 @@
-import { Observable, BehaviorSubject, combineLatest, Subject, Observer } from 'rxjs';
-import { take, flatMap, map, filter, mergeAll, takeUntil, distinctUntilChanged, debounceTime } from 'rxjs/operators';
+import { Observable, BehaviorSubject, combineLatest } from 'rxjs';
+import { take, map, filter, distinctUntilChanged, debounceTime, mergeAll } from 'rxjs/operators';
+
 import { HttpRequest } from '@mkeen/rxhttp';
 
-interface CouchDBChange {
-  rev: string;
-}
-
-interface CouchDBChanges {
-  changes: CouchDBChange[];
-  id: string;
-  seq: string;
-  doc: CouchDBDocument;
-}
-
-interface CouchDBDocument {
-  "_id": string;
-}
-
-interface CouchDBDesignView {
-  total_rows: number;
-  offset: number;
-  rows: CouchDBDocument[];
-}
-
-class CouchDBDocumentCollection {
-  private documents: any = {};
-  public ids: BehaviorSubject<string[]> = new BehaviorSubject<string[]>([]);
-
-  public add(document: CouchDBDocument) {
-    this.documents[document._id] = new BehaviorSubject<CouchDBDocument>(document);
-    this.ids
-      .pipe(take(1))
-      .subscribe((ids) => {
-        ids.push(document._id);
-        this.ids.next(ids)
-      });
-
-    return this.documents[document._id];
-  }
-
-  public get(id: string): BehaviorSubject<CouchDBDocument> | null {
-    if (this.documents[id] === undefined) {
-      return null;
-    } else {
-      return this.documents[id];
-    }
-
-  }
-
-  public set(document: any): BehaviorSubject<CouchDBDocument> {
-    const doc = this.get(document['_id']);
-    if (doc !== null) {
-      doc.next(document);
-      return doc;
-    } else {
-      return this.add(document);
-    }
-
-  }
-
-}
+import { CouchDBDocumentCollection } from './couchdbdocumentcollection';
+import {
+  CouchDBChanges,
+  CouchDBChange,
+  CouchDBDesignView,
+  CouchDBDocument
+} from './rxcouch.d';
 
 export class CouchWatcher {
   public documents: CouchDBDocumentCollection = new CouchDBDocumentCollection();
@@ -78,11 +28,8 @@ export class CouchWatcher {
       .pipe(filter((config: [string[], string, string, number]) => config[0].length !== 0))
       .pipe(debounceTime(1000))
       .subscribe((config: [string[], string, string, number]) => {
-        console.log("config came thru", config);
         if (this.connection !== undefined) {
-          console.log("connga cancel");
           this.connection.cancel().subscribe((_x: any) => { }, (_e: any) => { }, () => {
-            console.log("cancel emitted");
             this.connection.configure(
               this.watchUrlFromConfig(config), {
                 method: 'POST',
@@ -98,7 +45,6 @@ export class CouchWatcher {
           });
 
         } else {
-          console.log("gonna establish", config);
           this.connection = new HttpRequest<CouchDBChanges>(
             this.watchUrlFromConfig(config), {
               method: 'POST',
@@ -114,7 +60,6 @@ export class CouchWatcher {
 
         this.connection.listen().subscribe(
           (update: CouchDBChanges) => {
-            console.log("update", update);
             return this.documents.set(update.doc)
           }
 
@@ -144,6 +89,7 @@ export class CouchWatcher {
 
         )).get();
       }))
+      .pipe(mergeAll())
   }
 
   private config(): Observable<[string[], string, string, number]> {
