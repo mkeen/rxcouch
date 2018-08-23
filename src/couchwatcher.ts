@@ -9,7 +9,7 @@ import {
   CouchDBChange,
   CouchDBDesignView,
   CouchDBDocument
-} from './rxcouch.d';
+} from './types';
 
 export class CouchWatcher {
   public documents: CouchDBDocumentCollection = new CouchDBDocumentCollection();
@@ -87,7 +87,7 @@ export class CouchWatcher {
             method: 'GET'
           }
 
-        )).get();
+        )).send();
       }))
       .pipe(mergeAll())
   }

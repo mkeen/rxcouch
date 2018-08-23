@@ -3,7 +3,7 @@ import { take } from 'rxjs/operators';
 
 import {
   CouchDBDocument
-} from './rxcouch.d';
+} from './types';
 
 export class CouchDBDocumentCollection {
   private documents: any = {};
