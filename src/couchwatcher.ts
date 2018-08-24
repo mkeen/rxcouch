@@ -86,7 +86,7 @@ export class CouchWatcher {
     return Observable
       .create((observer: Observer<BehaviorSubject<any>>) => {
         const doc = this.documents.get(id);
-        if (doc) {
+        if (doc !== null) {
           observer.next(doc);
         } else {
           this.config()
