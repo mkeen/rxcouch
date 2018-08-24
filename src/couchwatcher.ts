@@ -1,4 +1,4 @@
-import { Observable, BehaviorSubject, combineLatest } from 'rxjs';
+import { Observable, BehaviorSubject, combineLatest, Observer } from 'rxjs';
 import { take, map, filter, distinctUntilChanged, debounceTime, mergeAll } from 'rxjs/operators';
 
 import { HttpRequest } from '@mkeen/rxhttp';
@@ -41,7 +41,6 @@ export class CouchWatcher {
 
             );
 
-            this.createDocuments(config[0]);
           });
 
         } else {
@@ -60,22 +59,13 @@ export class CouchWatcher {
 
         this.connection.listen().subscribe(
           (update: CouchDBChanges) => {
-            return this.documents.set(update.doc)
+            return this.documents.set(update.doc);
           }
 
         );
 
       });
 
-  }
-
-  private createDocuments(document_ids: string[]) {
-    document_ids.forEach((document_id: string) => {
-      if (!this.documents.get(document_id)) {
-        this.documents.set({ '_id': document_id });
-      }
-
-    });
   }
 
   public view(designName: string, viewName: string): Observable<any> {
@@ -92,12 +82,42 @@ export class CouchWatcher {
       .pipe(mergeAll())
   }
 
+  public get(id: string) {
+    return Observable
+      .create((observer: Observer<BehaviorSubject<any>>) => {
+        const doc = this.documents.get(id);
+        if (doc) {
+          observer.next(doc);
+        } else {
+          this.config()
+            .pipe(map((config: [string[], string, string, number]) => {
+              return (new HttpRequest<any>(
+                this.singleDocumentFromConfig(config, id), {
+                  method: 'GET'
+                }
+
+              )).send();
+            }))
+            .pipe(mergeAll())
+            .pipe((document: any) => {
+              return this.documents.add(document);
+            })
+            .pipe(mergeAll());
+        }
+
+      });
+  }
+
   private config(): Observable<[string[], string, string, number]> {
     return combineLatest(this.documents.ids, this.database_name, this.host, this.port)
   }
 
   private watchUrlFromConfig(config: [string[], string, string, number]): string {
     return `${this.urlPrefixFromConfig(config)}/${this.changeOptions()}`;
+  }
+
+  private singleDocumentFromConfig(config: [string[], string, string, number], id: string): string {
+    return `${this.urlPrefixFromConfig(config)}/${id}`;
   }
 
   private viewUrlFromConfig(config: [string[], string, string, number], designName: string, viewName: string): string {
