@@ -1,7 +1,7 @@
 {
   "name": "@mkeen/rxcouch",
-  "version": "1.2.3",
-  "description": "Simple Change Notification RxJs CouchDB Client",
+  "version": "1.2.6",
+  "description": "Real Time RxJs Based CouchDB Client",
   "keywords": [
     "couchdb-client",
     "couchdb",
@@ -25,7 +25,7 @@
   "author": "Mike Keen",
   "license": "ISC",
   "dependencies": {
-    "@mkeen/rxhttp": "^1.2.1",
+    "@mkeen/rxhttp": "^1.2.3",
     "rxjs": "^6.2.2"
   },
   "devDependencies": {
