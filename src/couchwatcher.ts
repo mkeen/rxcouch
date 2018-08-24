@@ -91,7 +91,7 @@ export class CouchWatcher {
         } else {
           this.config()
             .pipe(map((config: [string[], string, string, number]) => {
-              return (new HttpRequest<any>(
+              return (new HttpRequest<CouchDBDocument>(
                 this.singleDocumentFromConfig(config, id), {
                   method: 'GET'
                 }
@@ -99,9 +99,10 @@ export class CouchWatcher {
               )).send();
             }))
             .pipe(mergeAll())
-            .pipe((document: any) => {
+            .pipe(map((document: CouchDBDocument) => {
+              console.log(document);
               return this.documents.add(document);
-            })
+            }))
             .pipe(mergeAll());
         }
 
