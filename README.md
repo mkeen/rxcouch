@@ -9,7 +9,7 @@ ex:
 
 ```
 this.couch = new CouchWatcher('127.0.0.1', 5984, 'items');
-this.couch.documents.get("document_id_here")
+this.couch.get("document_id_here")
   .subscribe((document) => {
     // It's a free country
   }
