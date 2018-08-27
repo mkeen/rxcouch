@@ -8,7 +8,9 @@ import {
   CouchDBChanges,
   CouchDBChange,
   CouchDBDesignView,
-  CouchDBDocument
+  CouchDBDocument,
+  CouchDBDesignViewOptions,
+  WatcherConfig
 } from './types';
 
 export class CouchWatcher {
@@ -68,12 +70,15 @@ export class CouchWatcher {
 
   }
 
-  public view(designName: string, viewName: string): Observable<any> {
+  public view(designName: string,
+    viewName: string,
+    options?: CouchDBDesignViewOptions): Observable<any> {
     return this.config()
       .pipe(take(1))
-      .pipe(map((config: [string[], string, string, number]) => {
+      .pipe(map((config: WatcherConfig) => {
+        console.log(options);
         return (new HttpRequest<any>(
-          this.viewUrlFromConfig(config, designName, viewName), {
+          this.viewUrlFromConfig(config, designName, viewName, options), {
             method: 'GET'
           }
 
@@ -90,43 +95,58 @@ export class CouchWatcher {
           observer.next(doc);
         } else {
           this.config()
-            .pipe(map((config: [string[], string, string, number]) => {
+            .pipe(take(1))
+            .pipe(map((config: WatcherConfig) => {
               return (new HttpRequest<CouchDBDocument>(
                 this.singleDocumentFromConfig(config, id), {
                   method: 'GET'
                 }
 
               )).send();
+
             }))
             .pipe(mergeAll())
-            .pipe(map((document: CouchDBDocument) => {
-              console.log(document);
-              return this.documents.add(document);
-            }))
-            .pipe(mergeAll());
+            .subscribe((document: CouchDBDocument) => {
+              observer.next(this.documents.add(document));
+            });
+
         }
 
       });
+
   }
 
-  private config(): Observable<[string[], string, string, number]> {
+  private config(): Observable<WatcherConfig> {
     return combineLatest(this.documents.ids, this.database_name, this.host, this.port)
   }
 
-  private watchUrlFromConfig(config: [string[], string, string, number]): string {
+  private watchUrlFromConfig(config: WatcherConfig): string {
     return `${this.urlPrefixFromConfig(config)}/${this.changeOptions()}`;
   }
 
-  private singleDocumentFromConfig(config: [string[], string, string, number], id: string): string {
+  private singleDocumentFromConfig(config: WatcherConfig, id: string): string {
     return `${this.urlPrefixFromConfig(config)}/${id}`;
   }
 
-  private viewUrlFromConfig(config: [string[], string, string, number], designName: string, viewName: string): string {
-    return `${this.urlPrefixFromConfig(config)}/_design/${designName}/_view/${viewName}`;
+  private viewUrlFromConfig(config: WatcherConfig, designName: string, viewName: string, options?: any): string {
+    let base = `${this.urlPrefixFromConfig(config)}/_design/${designName}/_view/${viewName}`;
+    if (options) {
+      base += '?'
+      for (let name in options) {
+        if (options.hasOwnProperty(name)) {
+          base += `${name}=${options[name]}&`
+        }
+
+      }
+
+      base = base.substring(0, base.length - 1);
+    }
+
+    return base;
   }
 
   private changeOptions(): string {
-    return '_changes?include_docs=true&feed=continuous&filter=_doc_ids';
+    return '_changes?include_docs=true&feed=continuous&filter=_doc_ids&since=now';
   }
 
   private urlPrefixFromConfig(config: [string[], string, string, number]): string {
