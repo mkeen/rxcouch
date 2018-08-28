@@ -1,16 +1,25 @@
 # rxcouch
 Simple Change Notification RxJs CouchDB Client
 
-Interact with a CouchDB change stream via RxJs BehaviorSubjects. Supports typed responses with generics. Just tell the watcher what documents you're interested in, then create subscriptions to the documents themselves.
+Subscribe to documents in CouchDB easily. Don't worry about the change feed API. Just make dope real-time UI's.
 
 install: `npm install @mkeen/rxcouch`
 
-ex: 
+simple ex: 
 
 ```
+import { CouchWatcher } from '@mkeen/rxcouch';
+
+interface Person implements CouchDBDocument {
+  name: String;
+  email: String;
+}
+
 this.couch = new CouchWatcher('127.0.0.1', 5984, 'items');
-this.couch.get("document_id_here")
-  .subscribe((document) => {
-    // It's a free country
-  }
-);
+this.couch.doc({_id: '4b75030702ae88064daf8182ca00364e'})  // Pass in a partial doc from
+  .subscribe((document: Person) => {                       // local cache. RxCouch will
+    // It's a free country                                 // fetch the entire doc and
+  }                                                        // return a BehaviorSubject which
+);                                                         // will be automatically updated
+                                                           // in real time.
+                                                           // Isn't that nice? :)

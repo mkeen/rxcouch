@@ -6,6 +6,9 @@ export type CouchDBDocument = {
   [prop: string]: any;
 }
 
+export type CouchDBDesignView = 'view';
+export type CouchDBDesignList = 'list';
+
 export interface CouchDBChange {
   rev: string;
 }
@@ -17,7 +20,7 @@ export interface CouchDBChanges {
   doc: CouchDBDocument;
 }
 
-export interface CouchDBDesignView {
+export interface CouchDBDesignViewResponse {
   total_rows: number;
   offset: number;
   rows: CouchDBDocument[];

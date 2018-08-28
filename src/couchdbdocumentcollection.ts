@@ -1,42 +1,38 @@
 import { BehaviorSubject } from 'rxjs';
-import { take } from 'rxjs/operators';
-
-import {
-  CouchDBDocument
-} from './types';
+import { CouchDBDocument } from './types';
 
 export class CouchDBDocumentCollection {
   private documents: any = {};
   public ids: BehaviorSubject<string[]> = new BehaviorSubject<string[]>([]);
 
-  public add(document: CouchDBDocument) {
-    this.documents[document._id] = new BehaviorSubject<CouchDBDocument>(document);
-    this.ids
-      .pipe(take(1))
-      .subscribe((ids) => {
-        ids.push(document._id);
-        this.ids.next(ids)
-      });
-
-    return this.documents[document._id];
-  }
-
-  public get(id: string): BehaviorSubject<CouchDBDocument> | null {
-    if (this.documents[id] === undefined) {
-      return null;
-    } else {
-      return this.documents[id];
-    }
-
-  }
-
-  public set(document: any): BehaviorSubject<CouchDBDocument> {
-    const doc = this.get(document['_id']);
+  public doc(document: any): BehaviorSubject<CouchDBDocument> {
+    const doc = this.find(document['_id']);
     if (doc !== null) {
       doc.next(document);
       return doc;
     } else {
       return this.add(document);
+    }
+
+  }
+
+  public docId(document_id: string): BehaviorSubject<CouchDBDocument> {
+    return this.doc({ _id: document_id });
+  }
+
+  public hasId(document_id: string): boolean {
+    return this.find(document_id) !== null
+  }
+
+  private add(document: CouchDBDocument): any {
+    return this.documents[document._id] = new BehaviorSubject<CouchDBDocument>(document);
+  }
+
+  private find(document_id: string): BehaviorSubject<CouchDBDocument> | null {
+    if (this.documents[document_id] === undefined) {
+      return null;
+    } else {
+      return this.documents[document_id];
     }
 
   }
