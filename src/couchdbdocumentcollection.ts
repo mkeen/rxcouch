@@ -1,4 +1,5 @@
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Observable, Observer } from 'rxjs';
+import { take, mergeAll } from 'rxjs/operators';
 import { CouchDBDocument } from './types';
 
 export class CouchDBDocumentCollection {
@@ -8,7 +9,7 @@ export class CouchDBDocumentCollection {
   public doc(document: any): BehaviorSubject<CouchDBDocument> {
     const doc = this.find(document['_id']);
     if (doc !== null) {
-      if (Object.keys(document).length > 1) {
+      if (!this.isFragment(document)) {
         doc.next(document);
       }
 
@@ -27,8 +28,20 @@ export class CouchDBDocumentCollection {
     return this.find(document_id) !== null
   }
 
-  public add(document: CouchDBDocument): any {
-    return this.documents[document._id] = new BehaviorSubject<CouchDBDocument>(document);
+  private add(document: CouchDBDocument): BehaviorSubject<CouchDBDocument> {
+    return Observable
+      .create((observer: Observer<BehaviorSubject<CouchDBDocument>>): void => {
+        this.ids
+          .pipe(take(1))
+          .subscribe((ids: string[]): void => {
+            ids.push(document._id);
+            this.ids.next(ids);
+            this.documents[document._id] = new BehaviorSubject<CouchDBDocument>(document);
+            observer.next(this.documents[document._id]);
+            observer.complete();
+          })
+      })
+      .pipe(mergeAll());
   }
 
   private find(document_id: string): BehaviorSubject<CouchDBDocument> | null {
@@ -38,6 +51,10 @@ export class CouchDBDocumentCollection {
       return this.documents[document_id];
     }
 
+  }
+
+  private isFragment(document: CouchDBDocument): boolean {
+    return Object.keys(document).length === 1;
   }
 
 }

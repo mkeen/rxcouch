@@ -40,9 +40,7 @@ export class CouchWatcher {
                   'doc_ids': config[0]
                 })
 
-              }
-
-            );
+              });
 
           });
 
@@ -54,15 +52,13 @@ export class CouchWatcher {
                 'doc_ids': config[0]
               })
 
-            }
-
-          );
+            });
 
         }
 
         this.connection.listen().subscribe(
           (update: CouchDBChanges) => {
-            return this.doc(update.doc);
+            return this.documents.doc(update.doc);
           }
 
         );
@@ -106,9 +102,7 @@ export class CouchWatcher {
                 this.singleDocumentFromConfig(config, document._id), {
                   method: 'GET'
                 }
-
               )).send();
-
             }))
             .pipe(mergeAll())
             .subscribe((document: CouchDBDocument) => {
