@@ -1,7 +1,7 @@
 # rxcouch
 Simple Change Notification RxJs CouchDB Client
 
-Subscribe to documents in CouchDB easily. Don't worry about the change feed API. Just make dope real-time UI's. Powered by [RxHttp](https://github.com/mkeen/rxhttp)
+Subscribe to documents in CouchDB easily. Don't worry about the change feed API. Just make dope real-time UI's. Powered by [RxHttp](https://github.com/mkeen/rxhttp), which I wrote specifically with real-time json-based data feeds in mind. It's ReactiveX all the way down, folks.
 
 install: `npm install @mkeen/rxcouch`
 
