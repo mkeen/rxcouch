@@ -24,7 +24,7 @@ export class CouchDBDocumentCollection {
     return this.find(document_id) !== null
   }
 
-  private add(document: CouchDBDocument): any {
+  public add(document: CouchDBDocument): any {
     return this.documents[document._id] = new BehaviorSubject<CouchDBDocument>(document);
   }
 
