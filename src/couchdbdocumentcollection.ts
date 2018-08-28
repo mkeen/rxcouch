@@ -8,7 +8,10 @@ export class CouchDBDocumentCollection {
   public doc(document: any): BehaviorSubject<CouchDBDocument> {
     const doc = this.find(document['_id']);
     if (doc !== null) {
-      doc.next(document);
+      if (Object.keys(document).length > 1) {
+        doc.next(document);
+      }
+
       return doc;
     } else {
       return this.add(document);
