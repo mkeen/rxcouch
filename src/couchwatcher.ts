@@ -29,7 +29,17 @@ export class CouchWatcher {
 
     this.configWatcher = combineLatest(this.documents.ids, this.database_name, this.host, this.port)
       .pipe(distinctUntilChanged((a, b) => JSON.stringify(a) !== JSON.stringify(b)))
-      .pipe(filter((config: WatcherConfig) => config[0].length !== 0))
+      .pipe(filter((config: WatcherConfig) => {
+        const idsNotEmpty = config[0].length !== 0;
+        if (idsNotEmpty) {
+          if (this.connection !== undefined) {
+            this.connection.cancel();
+          }
+
+        }
+
+        return idsNotEmpty;
+      }))
       .pipe(debounceTime(1000))
       .subscribe((config: WatcherConfig) => {
         if (this.connection !== undefined) {
