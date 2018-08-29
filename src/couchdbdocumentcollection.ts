@@ -20,6 +20,11 @@ export class CouchDBDocumentCollection {
 
   }
 
+  public clear() {
+    this.documents = {};
+    this.ids.next([]);
+  }
+
   public docId(document_id: string): BehaviorSubject<CouchDBDocument> {
     return this.doc({ _id: document_id });
   }

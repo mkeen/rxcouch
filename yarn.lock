@@ -96,11 +96,19 @@
     lodash "^4.17.5"
     to-fast-properties "^2.0.0"
 
-"@mkeen/rxhttp@^1.2.3":
-  version "1.2.3"
-  resolved "https://registry.yarnpkg.com/@mkeen/rxhttp/-/rxhttp-1.2.3.tgz#452083b645e08cda31ef93c03faa22ce064ff35a"
+"@mattiasbuelens/web-streams-polyfill@^0.1.0":
+  version "0.1.0"
+  resolved "https://registry.yarnpkg.com/@mattiasbuelens/web-streams-polyfill/-/web-streams-polyfill-0.1.0.tgz#c06ebfa7e00cc512a878c3aaae4cf113ac89ac24"
   dependencies:
+    "@types/whatwg-streams" "^0.0.6"
+
+"@mkeen/rxhttp@1.2.6":
+  version "1.2.6"
+  resolved "https://registry.yarnpkg.com/@mkeen/rxhttp/-/rxhttp-1.2.6.tgz#240dc9faa6f29b4fe568e63eaeb12842e9259880"
+  dependencies:
+    "@mattiasbuelens/web-streams-polyfill" "^0.1.0"
     rxjs "^6.2.2"
+    text-encoding-shim "^1.0.0"
 
 "@mrmlnc/readdir-enhanced@^2.2.1":
   version "2.2.1"
@@ -116,6 +124,10 @@
 "@sindresorhus/is@^0.7.0":
   version "0.7.0"
   resolved "https://registry.yarnpkg.com/@sindresorhus/is/-/is-0.7.0.tgz#9a06f4f137ee84d7df0460c1fdb1135ffa6c50fd"
+
+"@types/whatwg-streams@^0.0.6":
+  version "0.0.6"
+  resolved "https://registry.yarnpkg.com/@types/whatwg-streams/-/whatwg-streams-0.0.6.tgz#5062c67efb695c886fe3dbb9618df35aac418503"
 
 "@webpack-cli/serve@^0.1.0":
   version "0.1.0"
@@ -4379,6 +4391,10 @@ test-exclude@^4.2.1:
     minimatch "^3.0.4"
     read-pkg-up "^3.0.0"
     require-main-filename "^1.0.1"
+
+text-encoding-shim@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/text-encoding-shim/-/text-encoding-shim-1.0.0.tgz#dc2f32d0a6f621e39a96c4a15a8ecdcd3187c0d6"
 
 text-table@^0.2.0:
   version "0.2.0"

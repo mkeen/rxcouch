@@ -20,29 +20,28 @@ export class CouchWatcher {
   private host: BehaviorSubject<string>;
   private port: BehaviorSubject<number>;
   private connection: any;
+  private configWatcher: any;
 
   constructor(host: string, port: number, database_name: string) {
     this.database_name = new BehaviorSubject(database_name);
     this.port = new BehaviorSubject(port);
     this.host = new BehaviorSubject(host);
 
-    this.config()
+    this.configWatcher = combineLatest(this.documents.ids, this.database_name, this.host, this.port)
       .pipe(distinctUntilChanged((a, b) => JSON.stringify(a) !== JSON.stringify(b)))
       .pipe(filter((config: WatcherConfig) => config[0].length !== 0))
       .pipe(debounceTime(1000))
       .subscribe((config: WatcherConfig) => {
+        console.log("config changed and flowed down");
         if (this.connection !== undefined) {
-          this.connection.cancel().subscribe((_x: any) => { }, (_e: any) => { }, () => {
-            this.connection.configure(
-              this.watchUrlFromConfig(config), {
-                method: 'POST',
-                body: JSON.stringify({
-                  'doc_ids': config[0]
-                })
+          this.connection.reconfigure(
+            this.watchUrlFromConfig(config), {
+              method: 'POST',
+              body: JSON.stringify({
+                'doc_ids': config[0]
+              })
 
-              });
-
-          });
+            });
 
         } else {
           this.connection = new HttpRequest<CouchDBChanges>(
@@ -56,6 +55,7 @@ export class CouchWatcher {
 
         }
 
+        console.log("abouts to listen");
         this.connection.listen().subscribe(
           (update: CouchDBChanges) => {
             return this.documents.doc(update.doc);
@@ -63,7 +63,7 @@ export class CouchWatcher {
 
         );
 
-      });
+      })
 
   }
 
@@ -116,7 +116,7 @@ export class CouchWatcher {
   }
 
   private config(): Observable<WatcherConfig> {
-    return combineLatest(this.documents.ids, this.database_name, this.host, this.port)
+    return combineLatest(this.documents.ids, this.database_name, this.host, this.port);
   }
 
   private changeOptions(): string {
