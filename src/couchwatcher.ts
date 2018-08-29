@@ -69,14 +69,19 @@ export class CouchWatcher {
     designName: string,
     designType: CouchDBDesignView | CouchDBDesignList,
     designTypeName: string,
-    options?: CouchDBDesignViewOptions): Observable<any> {
-
+    options?: CouchDBDesignViewOptions
+  ): Observable<any> {
     return this.config()
       .pipe(take(1))
       .pipe(map((config: WatcherConfig) => {
         return (new HttpRequest<any>(
           this.designUrlFromConfig(
-            config, designName, designTypeName, designType, options), { method: 'GET' }
+            config,
+            designName,
+            designTypeName,
+            designType,
+            options
+          ), { method: 'GET' }
         )).send();
       }))
       .pipe(mergeAll())
@@ -100,17 +105,19 @@ export class CouchWatcher {
                 this.singleDocumentFromConfig(config, document._id), {
                   method: 'GET'
                 }
+
               )).send();
+
             }))
             .pipe(mergeAll())
             .subscribe((document: CouchDBDocument) => {
               observer.next(this.documents.doc(document));
               observer.complete();
             });
+
         }
 
-      })
-      .pipe(mergeAll());
+      }).pipe(mergeAll());
   }
 
   private config(): Observable<WatcherConfig> {
@@ -121,7 +128,13 @@ export class CouchWatcher {
     return '_changes?include_docs=true&feed=continuous&filter=_doc_ids&since=now';
   }
 
-  private designUrlFromConfig(config: WatcherConfig, designName: string, designTypeName: string, designType: string = 'view', options?: any): string {
+  private designUrlFromConfig(
+    config: WatcherConfig,
+    designName: string,
+    designTypeName: string,
+    designType: string = 'view',
+    options?: any
+  ): string {
     let base = `${this.urlPrefixFromConfig(config)}/_design/${designName}/_${designType}/${designTypeName}`;
     if (options) {
       base += '?'
@@ -142,7 +155,7 @@ export class CouchWatcher {
     return `${this.urlPrefixFromConfig(config)}/${id}`;
   }
 
-  private urlPrefixFromConfig(config: [string[], string, string, number]): string {
+  private urlPrefixFromConfig(config: WatcherConfig): string {
     return `http://${config[2]}:${config[3]}/${config[1]}`
   }
 
