@@ -32,7 +32,6 @@ export class CouchWatcher {
       .pipe(filter((config: WatcherConfig) => config[0].length !== 0))
       .pipe(debounceTime(1000))
       .subscribe((config: WatcherConfig) => {
-        console.log("config changed and flowed down");
         if (this.connection !== undefined) {
           this.connection.reconfigure(
             this.watchUrlFromConfig(config), {
@@ -55,7 +54,6 @@ export class CouchWatcher {
 
         }
 
-        console.log("abouts to listen");
         this.connection.listen().subscribe(
           (update: CouchDBChanges) => {
             return this.documents.doc(update.doc);
