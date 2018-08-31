@@ -18,7 +18,7 @@ Subscribe to documents in CouchDB easily. Don't worry about the change feed API.
   
 https://www.npmjs.com/package/@mkeen/rxhttp  
 
-install: `npm install @mkeen/rxcouch`
+install: `yarn add @mkeen/rxcouch`
 
 ### Examples
 
