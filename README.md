@@ -34,5 +34,6 @@ this.couch.doc({_id: '4b75030702ae88064daf8182ca00364e'})  // Pass in a partial 
                                                            // will be automatically updated in
 );                                                         // real time. Isn't that nice? :)
 ```
-
-🇺🇸 American Software
+  
+  
+🇺🇸
