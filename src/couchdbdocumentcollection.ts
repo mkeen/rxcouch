@@ -1,36 +1,38 @@
 import { BehaviorSubject, Observable, Observer } from 'rxjs';
 import { take, mergeAll } from 'rxjs/operators';
+import { CouchDBBatch } from './couchdbbatch';
 import { CouchDBDocument } from './types';
 
 export class CouchDBDocumentCollection {
   private documents: any = {};
   public ids: BehaviorSubject<string[]> = new BehaviorSubject<string[]>([]);
 
-  public doc(document: any): BehaviorSubject<CouchDBDocument> {
-    const doc = this.find(document['_id']);
-    if (doc !== null) {
+  public clear() {
+    this.documents = {};
+    this.ids.next([]);
+  }
+
+  public doc(document: CouchDBDocument): BehaviorSubject<CouchDBDocument> {
+    const savedDoc: BehaviorSubject<CouchDBDocument> | null = this.find(document['_id']);
+
+    if (savedDoc !== null) {
       if (!this.isFragment(document)) {
-        doc.next(document);
+        savedDoc.next(document);
       }
 
-      return doc;
+      return savedDoc;
     } else {
       return this.add(document);
     }
 
   }
 
-  public clear() {
-    this.documents = {};
-    this.ids.next([]);
-  }
-
-  public docId(document_id: string): BehaviorSubject<CouchDBDocument> {
-    return this.doc({ _id: document_id });
-  }
-
   public hasId(document_id: string): boolean {
     return this.find(document_id) !== null
+  }
+
+  public isFragment(document: CouchDBDocument): boolean {
+    return Object.keys(document).length === 1;
   }
 
   private add(document: CouchDBDocument): BehaviorSubject<CouchDBDocument> {
@@ -39,14 +41,13 @@ export class CouchDBDocumentCollection {
         this.ids
           .pipe(take(1))
           .subscribe((ids: string[]): void => {
-            ids.push(document._id);
-            this.ids.next(ids);
+            this.ids.next(ids.concat([document._id]));
             this.documents[document._id] = new BehaviorSubject<CouchDBDocument>(document);
             observer.next(this.documents[document._id]);
             observer.complete();
-          })
-      })
-      .pipe(mergeAll());
+          });
+
+      }).pipe(mergeAll());
   }
 
   private find(document_id: string): BehaviorSubject<CouchDBDocument> | null {
@@ -56,10 +57,6 @@ export class CouchDBDocumentCollection {
       return this.documents[document_id];
     }
 
-  }
-
-  private isFragment(document: CouchDBDocument): boolean {
-    return Object.keys(document).length === 1;
   }
 
 }

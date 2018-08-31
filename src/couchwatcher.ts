@@ -1,7 +1,6 @@
-import { Observable, BehaviorSubject, combineLatest, Observer } from 'rxjs';
-import { take, map, filter, distinctUntilChanged, debounceTime, mergeAll } from 'rxjs/operators';
-import { HttpRequest } from '@mkeen/rxhttp';
-import { CouchDBDocumentCollection } from './couchdbdocumentcollection';
+import { distinctUntilChanged, debounceTime, take, map, filter, mergeAll } from 'rxjs/operators';
+import { Observer, Observable, BehaviorSubject, combineLatest } from 'rxjs';
+import { HttpRequest, FetchBehavior } from '@mkeen/rxhttp'
 
 import {
   CouchDBChanges,
@@ -14,12 +13,15 @@ import {
   WatcherConfig
 } from './types';
 
+import { CouchDBDocumentCollection } from './couchdbdocumentcollection';
+import { request } from 'http';
+
 export class CouchWatcher {
   public documents: CouchDBDocumentCollection = new CouchDBDocumentCollection();
   private database_name: BehaviorSubject<string>;
   private host: BehaviorSubject<string>;
   private port: BehaviorSubject<number>;
-  private connection: any;
+  private changeFeedReq: HttpRequest<any> | null = null;
   private configWatcher: any;
 
   constructor(host: string, port: number, database_name: string) {
@@ -27,44 +29,39 @@ export class CouchWatcher {
     this.port = new BehaviorSubject(port);
     this.host = new BehaviorSubject(host);
 
-    this.configWatcher = combineLatest(this.documents.ids, this.database_name, this.host, this.port)
-      .pipe(distinctUntilChanged((a, b) => JSON.stringify(a) !== JSON.stringify(b)))
+    this.configWatcher = this.config()
+      .pipe(distinctUntilChanged())
       .pipe(filter((config: WatcherConfig) => {
-        const idsNotEmpty = config[0].length !== 0;
-        if (idsNotEmpty) {
-          if (this.connection !== undefined) {
-            this.connection.cancel();
+        const idsEmpty = config[0].length === 0;
+        if (idsEmpty) {
+          if (this.changeFeedReq instanceof HttpRequest) {
+            this.changeFeedReq.disconnect();
           }
 
         }
 
-        return idsNotEmpty;
+        return !idsEmpty;
       }))
-      .pipe(debounceTime(1000))
       .subscribe((config: WatcherConfig) => {
-        if (this.connection !== undefined) {
-          this.connection.reconfigure(
-            this.watchUrlFromConfig(config), {
-              method: 'POST',
-              body: JSON.stringify({
-                'doc_ids': config[0]
-              })
-
-            });
-
-        } else {
-          this.connection = new HttpRequest<CouchDBChanges>(
-            this.watchUrlFromConfig(config), {
-              method: 'POST',
-              body: JSON.stringify({
-                'doc_ids': config[0]
-              })
-
-            });
+        console.log("got config", config);
+        const requestUrl = this.watchUrlFromConfig(config);
+        const requestConfig = {
+          method: 'POST',
+          body: JSON.stringify({
+            'doc_ids': config[0]
+          })
 
         }
 
-        this.connection.listen().subscribe(
+        if (this.changeFeedReq === null) {
+          this.changeFeedReq = new HttpRequest<CouchDBChanges>(requestUrl, requestConfig, FetchBehavior.stream);
+        } else {
+          this.changeFeedReq.reconfigure(requestUrl, requestConfig, FetchBehavior.stream);
+        }
+
+        this.changeFeedReq.send(
+          FetchBehavior.stream
+        ).subscribe(
           (update: CouchDBChanges) => {
             return this.documents.doc(update.doc);
           }
@@ -75,6 +72,15 @@ export class CouchWatcher {
 
   }
 
+  public config(): Observable<WatcherConfig> {
+    return combineLatest(
+      this.documents.ids,
+      this.database_name,
+      this.host,
+      this.port
+    );
+  }
+
   public design(
     designName: string,
     designType: CouchDBDesignView | CouchDBDesignList,
@@ -83,22 +89,22 @@ export class CouchWatcher {
   ): Observable<any> {
     return this.config()
       .pipe(take(1))
-      .pipe(map((config: WatcherConfig) => {
-        return (new HttpRequest<any>(
-          this.designUrlFromConfig(
-            config,
-            designName,
-            designTypeName,
-            designType,
-            options
-          ), { method: 'GET' }
-        )).send();
-      }))
-      .pipe(mergeAll())
-  }
+      .pipe(
+        map((config: WatcherConfig) => {
+          return (new HttpRequest<any>(
+            this.designUrlFromConfig(
+              config,
+              designName,
+              designTypeName,
+              designType,
+              options
+            ), {
+              method: 'GET'
+            }
 
-  public docId(documentId: string): BehaviorSubject<CouchDBDocument> {
-    return this.doc({ _id: documentId });
+          )).send();
+
+        }))
   }
 
   public doc(document: CouchDBDocument): BehaviorSubject<CouchDBDocument> {
@@ -112,7 +118,10 @@ export class CouchWatcher {
             .pipe(take(1))
             .pipe(map((config: WatcherConfig) => {
               return (new HttpRequest<CouchDBDocument>(
-                this.singleDocumentFromConfig(config, document._id), {
+                this.singleDocumentFromConfig(
+                  config,
+                  document._id
+                ), {
                   method: 'GET'
                 }
 
@@ -128,14 +137,6 @@ export class CouchWatcher {
         }
 
       }).pipe(mergeAll());
-  }
-
-  private config(): Observable<WatcherConfig> {
-    return combineLatest(this.documents.ids, this.database_name, this.host, this.port);
-  }
-
-  private changeOptions(): string {
-    return '_changes?include_docs=true&feed=continuous&filter=_doc_ids&since=now';
   }
 
   private designUrlFromConfig(
@@ -159,6 +160,10 @@ export class CouchWatcher {
     }
 
     return base;
+  }
+
+  private changeOptions(): string {
+    return '_changes?include_docs=true&feed=continuous&filter=_doc_ids&since=now';
   }
 
   private singleDocumentFromConfig(config: WatcherConfig, id: string): string {
