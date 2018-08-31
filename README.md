@@ -1,7 +1,7 @@
 # 🛋 RxCouch
 Subscribe to documents in CouchDB easily. Don't worry about the change feed API. Just make dope real-time UI's. Powered by [RxHttp](https://github.com/mkeen/rxhttp), which I wrote specifically with real-time strongly-typed json feeds in mind. It's ReactiveX all the way down, folks.
 
-🇺🇸 American Software
+### Features
 
 📡 Automatic Change Notification  
    RxCouch keeps track of all documents that you are currently subscribed to.  
@@ -16,7 +16,7 @@ Subscribe to documents in CouchDB easily. Don't worry about the change feed API.
 
 install: `npm install @mkeen/rxcouch`
 
-simple ex: 
+### Examples
 
 ```
 import { CouchWatcher } from '@mkeen/rxcouch';
@@ -33,3 +33,6 @@ this.couch.doc({_id: '4b75030702ae88064daf8182ca00364e'})  // Pass in a partial 
   }                                                        // and return a BehaviorSubject which
                                                            // will be automatically updated in
 );                                                         // real time. Isn't that nice? :)
+```
+
+🇺🇸 American Software
