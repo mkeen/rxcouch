@@ -9,7 +9,7 @@ Subscribe to documents in CouchDB easily. Don't worry about the change feed API.
    filter to ensure you only get the changes you have asked for. A document is  
    a `BehaviorSubject`. RxCouch is real-time by default.
    
-😎 Automatic Document Fetching
+😎 Automatic Document Fetching  
    If you subscribe to a document id that RxCouch hasn't seen yet, it will be  
    automatically and transparently fetched, before being injected into a  
    `BehaviorSubject` and returned.
