@@ -14,7 +14,7 @@ Subscribe to documents in CouchDB easily. Don't worry about the change feed API.
    be  automatically and transparently fetched, before being injected into a  
    `BehaviorSubject` and returned. The `BehaviorSubject` will, of course, be  
    automatically updated in real-time via the `_changes` feed.
-
+  
 https://www.npmjs.com/package/@mkeen/rxhttp  
 
 install: `npm install @mkeen/rxcouch`
