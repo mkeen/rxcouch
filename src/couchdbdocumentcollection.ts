@@ -51,6 +51,10 @@ export class CouchDBDocumentCollection {
     return this.documents[document_id] !== undefined;
   }
 
+  public isDocument(item: any): item is CouchDBDocument {
+    return (<CouchDBDocument>item)._id !== undefined;
+  }
+
   private add(document: CouchDBDocument): Observable<string> {
     return Observable.create((observer: Observer<string>): void => {
       this.ids
@@ -63,10 +67,6 @@ export class CouchDBDocumentCollection {
 
     });
 
-  }
-
-  private isDocument(item: any): item is CouchDBDocument {
-    return (<CouchDBDocument>item)._id !== undefined;
   }
 
   private isFragment(document: CouchDBDocument): boolean {

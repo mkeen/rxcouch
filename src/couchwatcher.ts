@@ -1,6 +1,7 @@
 import { distinctUntilChanged, debounceTime, take, map, filter, mergeAll, tap } from 'rxjs/operators';
 import { Observer, Observable, BehaviorSubject, combineLatest } from 'rxjs';
-import { HttpRequest, FetchBehavior } from '@mkeen/rxhttp'
+import { HttpRequest, FetchBehavior } from '@mkeen/rxhttp';
+import { HttpRequestOptions } from '@mkeen/rxhttp/dist/types';
 
 import {
   CouchDBChanges,
@@ -10,11 +11,11 @@ import {
   CouchDBDesignViewOptions,
   CouchDBDesignView,
   CouchDBDesignList,
-  WatcherConfig
+  WatcherConfig,
+  CouchDBPreDocument
 } from './types';
 
 import { CouchDBDocumentCollection } from './couchdbdocumentcollection';
-import { request } from 'http';
 
 export class CouchWatcher {
   public documents: CouchDBDocumentCollection = new CouchDBDocumentCollection();
@@ -108,10 +109,10 @@ export class CouchWatcher {
 
   }
 
-  public doc(document: CouchDBDocument): BehaviorSubject<CouchDBDocument> {
+  public doc(document: CouchDBDocument | CouchDBPreDocument): BehaviorSubject<CouchDBDocument> {
     return Observable
       .create((observer: Observer<BehaviorSubject<CouchDBDocument>>): void => {
-        if (this.documents.hasId(document._id)) {
+        if (this.documents.isDocument(document) && this.documents.hasId(document._id)) {
           observer.next(this.documents.doc(document));
           observer.complete();
         } else {
@@ -120,27 +121,42 @@ export class CouchWatcher {
               take(1),
               map(
                 (config: WatcherConfig) => {
+                  let httpOptions: HttpRequestOptions = {
+                    method: (this.documents.isDocument(document)) ? 'GET' : 'POST',
+                  }
+
+                  if (!this.documents.isDocument(document)) {
+                    httpOptions.body = JSON.stringify(document);
+                  }
+
                   return (new HttpRequest<CouchDBDocument>(
                     this.singleDocumentFromConfig(
                       config,
                       document._id
-                    ), {
-                      method: 'GET'
-                    }
-
-                  )).send()
+                    ), httpOptions)).send()
                 }
 
               ),
 
               mergeAll()
             )
+            .pipe(
+              map((doc): CouchDBDocument => {
+                if (doc._id === undefined) {
+                  return Object.assign(document, { _id: doc.id });
+                } else {
+                  return doc;
+                }
+
+              }))
             .subscribe((document: CouchDBDocument) => {
               observer.next(this.documents.doc(document));
               observer.complete();
             });
 
         }
+
+
 
       }).pipe(
         mergeAll()
@@ -175,8 +191,13 @@ export class CouchWatcher {
     return '_changes?include_docs=true&feed=continuous&filter=_doc_ids&since=now';
   }
 
-  private singleDocumentFromConfig(config: WatcherConfig, id: string): string {
-    return `${this.urlPrefixFromConfig(config)}/${id}`;
+  private singleDocumentFromConfig(config: WatcherConfig, docId?: string): string {
+    let url = `${this.urlPrefixFromConfig(config)}`;
+    if (docId) {
+      url += `/${docId}`;
+    }
+
+    return url;
   }
 
   private urlPrefixFromConfig(config: WatcherConfig): string {

@@ -6,6 +6,11 @@ export type CouchDBDocument = {
   [prop: string]: any;
 }
 
+export type CouchDBPreDocument = {
+} & {
+  [prop: string]: any;
+}
+
 export type CouchDBDesignView = 'view';
 export type CouchDBDesignList = 'list';
 
