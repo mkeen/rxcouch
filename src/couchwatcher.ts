@@ -1,4 +1,4 @@
-import { distinctUntilChanged, debounceTime, take, map, filter, mergeAll } from 'rxjs/operators';
+import { distinctUntilChanged, debounceTime, take, map, filter, mergeAll, tap } from 'rxjs/operators';
 import { Observer, Observable, BehaviorSubject, combineLatest } from 'rxjs';
 import { HttpRequest, FetchBehavior } from '@mkeen/rxhttp'
 
@@ -43,7 +43,6 @@ export class CouchWatcher {
         return !idsEmpty;
       }))
       .subscribe((config: WatcherConfig) => {
-        console.log("got config", config);
         const requestUrl = this.watchUrlFromConfig(config);
         const requestConfig = {
           method: 'POST',
@@ -63,12 +62,12 @@ export class CouchWatcher {
           FetchBehavior.stream
         ).subscribe(
           (update: CouchDBChanges) => {
-            return this.documents.doc(update.doc);
+            return this.documents.doc(update.doc).pipe(take(1)).subscribe(() => { });
           }
 
         );
 
-      })
+      });
 
   }
 
@@ -79,6 +78,7 @@ export class CouchWatcher {
       this.host,
       this.port
     );
+
   }
 
   public design(
@@ -88,8 +88,8 @@ export class CouchWatcher {
     options?: CouchDBDesignViewOptions
   ): Observable<any> {
     return this.config()
-      .pipe(take(1))
       .pipe(
+        take(1),
         map((config: WatcherConfig) => {
           return (new HttpRequest<any>(
             this.designUrlFromConfig(
@@ -104,7 +104,8 @@ export class CouchWatcher {
 
           )).send();
 
-        }))
+        }));
+
   }
 
   public doc(document: CouchDBDocument): BehaviorSubject<CouchDBDocument> {
@@ -115,20 +116,25 @@ export class CouchWatcher {
           observer.complete();
         } else {
           this.config()
-            .pipe(take(1))
-            .pipe(map((config: WatcherConfig) => {
-              return (new HttpRequest<CouchDBDocument>(
-                this.singleDocumentFromConfig(
-                  config,
-                  document._id
-                ), {
-                  method: 'GET'
+            .pipe(
+              take(1),
+              map(
+                (config: WatcherConfig) => {
+                  return (new HttpRequest<CouchDBDocument>(
+                    this.singleDocumentFromConfig(
+                      config,
+                      document._id
+                    ), {
+                      method: 'GET'
+                    }
+
+                  )).send()
                 }
 
-              )).send();
+              ),
 
-            }))
-            .pipe(mergeAll())
+              mergeAll()
+            )
             .subscribe((document: CouchDBDocument) => {
               observer.next(this.documents.doc(document));
               observer.complete();
@@ -136,7 +142,10 @@ export class CouchWatcher {
 
         }
 
-      }).pipe(mergeAll());
+      }).pipe(
+        mergeAll()
+      );
+
   }
 
   private designUrlFromConfig(

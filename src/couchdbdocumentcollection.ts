@@ -1,62 +1,76 @@
-import { BehaviorSubject, Observable, Observer } from 'rxjs';
-import { take, mergeAll } from 'rxjs/operators';
+import { BehaviorSubject, Observable, Observer, of } from 'rxjs';
+import { take, mergeAll, map } from 'rxjs/operators';
 import { CouchDBBatch } from './couchdbbatch';
 import { CouchDBDocument } from './types';
+import * as _ from "lodash";
 
 export class CouchDBDocumentCollection {
+  private batch: CouchDBBatch | null = null;
   private documents: any = {};
   public ids: BehaviorSubject<string[]> = new BehaviorSubject<string[]>([]);
 
-  public clear() {
+  public clear(): void {
     this.documents = {};
     this.ids.next([]);
   }
 
-  public doc(document: CouchDBDocument): BehaviorSubject<CouchDBDocument> {
-    const savedDoc: BehaviorSubject<CouchDBDocument> | null = this.find(document['_id']);
-
-    if (savedDoc !== null) {
-      if (!this.isFragment(document)) {
-        savedDoc.next(document);
+  public doc(document: CouchDBDocument | string): BehaviorSubject<CouchDBDocument> {
+    return Observable.create((observer: Observer<BehaviorSubject<CouchDBDocument>>): void => {
+      if (!this.isDocument(document)) {
+        document = { _id: document };
       }
 
-      return savedDoc;
-    } else {
-      return this.add(document);
-    }
+      if (this.documents[document._id] !== undefined) {
+        if (!this.isFragment(document)) {
+          this.documents[document._id].next(document);
+        }
+
+        observer.next(this.documents[document._id]);
+        observer.complete();
+      } else {
+        this.add(document)
+          .subscribe((document_id: string) => {
+            this.ids.next(
+              _.sortBy(
+                _.union(this.ids.value, [document_id])
+              ));
+
+            observer.next(this.documents[document_id]);
+            observer.complete();
+          });
+
+      }
+
+    }).pipe(
+      mergeAll()
+    );
 
   }
 
   public hasId(document_id: string): boolean {
-    return this.find(document_id) !== null
+    return this.documents[document_id] !== undefined;
   }
 
-  public isFragment(document: CouchDBDocument): boolean {
+  private add(document: CouchDBDocument): Observable<string> {
+    return Observable.create((observer: Observer<string>): void => {
+      this.ids
+        .pipe(
+          take(1)
+        ).subscribe((ids: string[]): void => {
+          this.documents[document._id] = new BehaviorSubject<CouchDBDocument>(document);
+          observer.next(document._id);
+        });
+
+    });
+
+  }
+
+  private isDocument(item: any): item is CouchDBDocument {
+    return (<CouchDBDocument>item)._id !== undefined;
+  }
+
+  private isFragment(document: CouchDBDocument): boolean {
     return Object.keys(document).length === 1;
-  }
-
-  private add(document: CouchDBDocument): BehaviorSubject<CouchDBDocument> {
-    return Observable
-      .create((observer: Observer<BehaviorSubject<CouchDBDocument>>): void => {
-        this.ids
-          .pipe(take(1))
-          .subscribe((ids: string[]): void => {
-            this.ids.next(ids.concat([document._id]));
-            this.documents[document._id] = new BehaviorSubject<CouchDBDocument>(document);
-            observer.next(this.documents[document._id]);
-            observer.complete();
-          });
-
-      }).pipe(mergeAll());
-  }
-
-  private find(document_id: string): BehaviorSubject<CouchDBDocument> | null {
-    if (this.documents[document_id] === undefined) {
-      return null;
-    } else {
-      return this.documents[document_id];
-    }
-
   }
 
 }
