@@ -13,7 +13,13 @@ Subscribe to documents in CouchDB easily. Don't worry about the change feed API.
    If you subscribe to a document id that RxCouch hasn't seen yet, it will  
    be  automatically and transparently fetched, before being injected into a  
    `BehaviorSubject` and returned. The `BehaviorSubject` will, of course, be  
-   automatically updated in real-time via the `_changes` feed.
+   automatically updated in real-time via the `_changes` feed.  
+   
+💾 **Automatic Document Creation**  
+   If you pass in a partial document, without an `_id` field, RxCouch will  
+   automatically add it to the database, and return a `BehaviorSubject` that  
+   will, in RxCouch tradition, be automatically updated via the `_changes`  
+   feed.
   
   
 https://www.npmjs.com/package/@mkeen/rxhttp  
