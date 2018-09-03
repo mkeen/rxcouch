@@ -22,7 +22,7 @@ Subscribe to documents in CouchDB easily. Don't worry about the change feed API.
    feed.
   
   
-https://www.npmjs.com/package/@mkeen/rxhttp  
+Powered by [rxhttp](https://www.npmjs.com/package/@mkeen/rxhttp)  
 
 install: `yarn add @mkeen/rxcouch`
 
