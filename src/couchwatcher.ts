@@ -105,13 +105,19 @@ export class CouchWatcher {
 
           )).send();
 
-        }));
+        }),
 
+        mergeAll(),
+        take(1));
   }
 
-  public doc(document: CouchDBDocument | CouchDBPreDocument): BehaviorSubject<CouchDBDocument> {
+  public doc(document: CouchDBDocument | CouchDBPreDocument | string): BehaviorSubject<CouchDBDocument> {
     return Observable
       .create((observer: Observer<BehaviorSubject<CouchDBDocument>>): void => {
+        if (typeof (document) === 'string') {
+          document = { _id: document };
+        }
+
         if (this.documents.isDocument(document) && this.documents.hasId(document._id)) {
           observer.next(this.documents.doc(document));
           observer.complete();
@@ -132,11 +138,9 @@ export class CouchWatcher {
                   return (new HttpRequest<CouchDBDocument>(
                     this.singleDocumentFromConfig(
                       config,
-                      document._id
+                      (this.documents.isDocument(document)) ? document._id : undefined
                     ), httpOptions)).send()
-                }
-
-              ),
+                }),
 
               mergeAll()
             )
@@ -149,19 +153,16 @@ export class CouchWatcher {
                 }
 
               }))
-            .subscribe((document: CouchDBDocument) => {
-              observer.next(this.documents.doc(document));
+            .subscribe((doc: CouchDBDocument) => {
+              observer.next(this.documents.doc(doc));
               observer.complete();
             });
 
         }
 
-
-
       }).pipe(
         mergeAll()
       );
-
   }
 
   private designUrlFromConfig(
