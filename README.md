@@ -72,8 +72,6 @@ this.couch.doc(new_person)             // Pass in a document without an _id fiel
   })                                   // detection subscription, a BehaviorSubject will
                                        // be returned. This BehaviorSubject will be
                                        // automatically returned in real time. :)
-
-// 
 ```                                       
 
   
