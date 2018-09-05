@@ -50,7 +50,7 @@ interface Person implements CouchDBDocument {
 }
 
 // Connect to a CouchDB Database
-this.couch = new CouchWatcher('127.0.0.1', 5984, 'items');
+this.couch = new CouchDB('127.0.0.1', 5984, 'items');
 
 // Get the latest version of a known document.
 this.couch.doc('4b75030702ae88064daf8182ca00364e')   // Pass in a document id of a known document,
