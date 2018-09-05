@@ -27,8 +27,8 @@ Powered by [rxhttp](https://www.npmjs.com/package/@mkeen/rxhttp)
 install: `yarn add @mkeen/rxcouch`
 
 ### Usage
-`CouchWatcher` is the what you will interact with most. Specifically, the `doc` function. An instance  
-of `CouchWatcher` provides the `doc` function, which accepts any document that conforms to `CouchDBDocument`,  
+The `CouchDB` is the what you will interact with most. Specifically, the `doc` function. An instance  
+of `CouchDB` provides the `doc` function, which accepts any document that conforms to `CouchDBDocument`,  
 `CouchDBPreDocument`, or a Document Id in the form of a `string`. This function will always return a  
 `BehaviorSubject` which contains the most up to date version of the resulting document in CouchDB.  
   
