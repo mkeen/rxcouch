@@ -42,7 +42,7 @@ is super readable if you need to dive in further.
 ### Examples
 
 ```
-import { CouchWatcher } from '@mkeen/rxcouch';
+import { CouchDB } from '@mkeen/rxcouch';
 
 interface Person implements CouchDBDocument {
   name: String;
