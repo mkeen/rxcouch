@@ -22,28 +22,58 @@ Subscribe to documents in CouchDB easily. Don't worry about the change feed API.
    feed.
   
   
-https://www.npmjs.com/package/@mkeen/rxhttp  
+Powered by [rxhttp](https://www.npmjs.com/package/@mkeen/rxhttp)  
 
 install: `yarn add @mkeen/rxcouch`
+
+### Usage
+The `CouchDB` is the what you will interact with most. Specifically, the `doc` function. An instance  
+of `CouchDB` provides the `doc` function, which accepts any document that conforms to `CouchDBDocument`,  
+`CouchDBPreDocument`, or a Document Id in the form of a `string`. This function will always return a  
+`BehaviorSubject` which contains the most up to date version of the resulting document in CouchDB.  
+  
+All calls to `doc` will result the resulting Document Id being added to the `_changes` watcher. The watcher  
+will transparently update all returned `BehaviorSubject`s in real time when the documents they represent  
+are modified in the database. This is the main feature of RxCouch.
+
+Complete documentation coming soon. The below examples should be sufficient to get started, and the code  
+is super readable if you need to dive in further.
 
 ### Examples
 
 ```
-import { CouchWatcher } from '@mkeen/rxcouch';
+import { CouchDB } from '@mkeen/rxcouch';
 
 interface Person implements CouchDBDocument {
   name: String;
   email: String;
 }
 
-this.couch = new CouchWatcher('127.0.0.1', 5984, 'items');
-this.couch.doc({_id: '4b75030702ae88064daf8182ca00364e'})  // Pass in a partial doc from
-  .subscribe((document: Person) => {                       // local cache or wherever.
-    // It's a free country                                 // RxCouch will fetch the entire doc
-  }                                                        // and return a BehaviorSubject which
-                                                           // will be automatically updated in
-);                                                         // real time. Isn't that nice? :)
-```
+// Connect to a CouchDB Database
+this.couch = new CouchDB('127.0.0.1', 5984, 'items');
+
+// Get the latest version of a known document.
+this.couch.doc('4b75030702ae88064daf8182ca00364e')   // Pass in a document id of a known document,
+  .subscribe((document: Person) => {                 // and it will be fetched, returned and
+    // It's a free country                           // subscribed to.
+  }
+
+);
+
+// Create, store, and subscribe to a new person...
+const new_person: Person = {
+  name: 'Chelsei',
+  email: 'c.san@bytewave.co'
+}
+
+this.couch.doc(new_person)             // Pass in a document without an _id field and a new
+  .subscribe((document: Person) => {   // document will be automatically created in CouchDB.
+    // It's a free country             // The new document will be added to the _changes
+  })                                   // detection subscription, a BehaviorSubject will
+                                       // be returned. This BehaviorSubject will be
+                                       // automatically returned in real time. :)
+```                                       
+  
   
   
 🇺🇸
