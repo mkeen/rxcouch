@@ -1,7 +1,13 @@
-import { distinctUntilChanged, debounceTime, take, map, filter, mergeAll, tap } from 'rxjs/operators';
 import { Observer, Observable, BehaviorSubject, combineLatest } from 'rxjs';
-import { HttpRequest, FetchBehavior } from '@mkeen/rxhttp';
-import { HttpRequestOptions } from '@mkeen/rxhttp/dist/types';
+import { distinctUntilChanged, take, map, filter, mergeAll } from 'rxjs/operators';
+
+import {
+  FetchBehavior,
+  HttpRequest,
+  HttpRequestOptions
+} from '@mkeen/rxhttp';
+
+import { CouchUrls } from './couchurls';
 
 import {
   CouchDBChanges,
@@ -17,7 +23,7 @@ import {
 
 import { CouchDBDocumentCollection } from './couchdbdocumentcollection';
 
-export class CouchWatcher {
+export class CouchDB {
   public documents: CouchDBDocumentCollection = new CouchDBDocumentCollection();
   private database_name: BehaviorSubject<string>;
   private host: BehaviorSubject<string>;
@@ -44,7 +50,7 @@ export class CouchWatcher {
         return !idsEmpty;
       }))
       .subscribe((config: WatcherConfig) => {
-        const requestUrl = this.watchUrlFromConfig(config);
+        const requestUrl = CouchUrls.watch(config);
         const requestConfig = {
           method: 'POST',
           body: JSON.stringify({
@@ -59,14 +65,13 @@ export class CouchWatcher {
           this.changeFeedReq.reconfigure(requestUrl, requestConfig, FetchBehavior.stream);
         }
 
-        this.changeFeedReq.send(
-          FetchBehavior.stream
-        ).subscribe(
-          (update: CouchDBChanges) => {
-            return this.documents.doc(update.doc).pipe(take(1)).subscribe(() => { });
-          }
+        this.changeFeedReq.send()
+          .subscribe(
+            (update: CouchDBChanges) => {
+              return this.documents.doc(update.doc).pipe(take(1)).subscribe(() => { });
+            }
 
-        );
+          );
 
       });
 
@@ -89,11 +94,10 @@ export class CouchWatcher {
     options?: CouchDBDesignViewOptions
   ): Observable<any> {
     return this.config()
-      .pipe(
-        take(1),
+      .pipe(take(1),
         map((config: WatcherConfig) => {
           return (new HttpRequest<any>(
-            this.designUrlFromConfig(
+            CouchUrls.design(
               config,
               designName,
               designTypeName,
@@ -136,7 +140,7 @@ export class CouchWatcher {
                   }
 
                   return (new HttpRequest<CouchDBDocument>(
-                    this.singleDocumentFromConfig(
+                    CouchUrls.document(
                       config,
                       (this.documents.isDocument(document)) ? document._id : undefined
                     ), httpOptions)).send()
@@ -147,7 +151,7 @@ export class CouchWatcher {
             .pipe(
               map((doc): CouchDBDocument => {
                 if (doc._id === undefined) {
-                  return Object.assign(document, { _id: doc.id });
+                  return Object.assign(document, { _id: doc.id }); // Get the id from couchdb after saving a new document
                 } else {
                   return doc;
                 }
@@ -160,53 +164,8 @@ export class CouchWatcher {
 
         }
 
-      }).pipe(
-        mergeAll()
-      );
-  }
+      }).pipe(mergeAll());
 
-  private designUrlFromConfig(
-    config: WatcherConfig,
-    designName: string,
-    designTypeName: string,
-    designType: string = 'view',
-    options?: any
-  ): string {
-    let base = `${this.urlPrefixFromConfig(config)}/_design/${designName}/_${designType}/${designTypeName}`;
-    if (options) {
-      base += '?'
-      for (let name in options) {
-        if (options.hasOwnProperty(name)) {
-          base += `${name}=${options[name]}&`
-        }
-
-      }
-
-      base = base.substring(0, base.length - 1);
-    }
-
-    return base;
-  }
-
-  private changeOptions(): string {
-    return '_changes?include_docs=true&feed=continuous&filter=_doc_ids&since=now';
-  }
-
-  private singleDocumentFromConfig(config: WatcherConfig, docId?: string): string {
-    let url = `${this.urlPrefixFromConfig(config)}`;
-    if (docId) {
-      url += `/${docId}`;
-    }
-
-    return url;
-  }
-
-  private urlPrefixFromConfig(config: WatcherConfig): string {
-    return `http://${config[2]}:${config[3]}/${config[1]}`
-  }
-
-  private watchUrlFromConfig(config: WatcherConfig): string {
-    return `${this.urlPrefixFromConfig(config)}/${this.changeOptions()}`;
   }
 
 }

@@ -1,2 +1,5 @@
-export { CouchWatcher } from './couchwatcher';
-export { CouchDBBatch } from './couchdbbatch';
+export { CouchDB } from './couchdb';
+export {
+  CouchDBDocument,
+  CouchDBPreDocument
+} from './types';

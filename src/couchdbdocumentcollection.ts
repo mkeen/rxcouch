@@ -1,11 +1,9 @@
 import { BehaviorSubject, Observable, Observer, of } from 'rxjs';
 import { take, mergeAll, map } from 'rxjs/operators';
-import { CouchDBBatch } from './couchdbbatch';
 import { CouchDBDocument } from './types';
 import * as _ from "lodash";
 
 export class CouchDBDocumentCollection {
-  private batch: CouchDBBatch | null = null;
   private documents: any = {};
   public ids: BehaviorSubject<string[]> = new BehaviorSubject<string[]>([]);
 
