@@ -3,11 +3,11 @@ Read, Write and Subscribe to documents in CouchDB with impunity. Don't worry abo
 
 ### Features
 
-📡 **Automatic Change Notification** -- RxCouch keeps track of all documents that you are currently subscribed to. It is always subscribed to CouchDB's _`changes` and utilizes the `_doc_ids` filter to ensure you only get the changes you have asked for. A document is a `BehaviorSubject`. RxCouch is real-time by default.
+📡 **Automatic Change Notification** -- RxCouch keeps track of all documents that you touch. RxCouch is always subscribed to CouchDB's _`changes` feed and utilizes the `_doc_ids` filter to ensure you only get the changes to relevant documents. A document is a `BehaviorSubject`. RxCouch is real-time by default. RxCouch tracks all documents that you get, modify, or create by default, but you can also specify (and update at your leisure) a list of ids that you would like to subscribe to updates for.
    
-😎 **Automatic Document Fetching** -- If you subscribe to a document id that RxCouch hasn't seen yet, it will be automatically and transparently fetched, before being injected into a `BehaviorSubject` and returned. The `BehaviorSubject` will, of course, be automatically updated in real-time via the `_changes` feed.  
+😎 **Automatic Document Fetching** -- If you subscribe to a document id that RxCouch hasn't seen yet, it will be automatically and transparently fetched, before being injected into a `BehaviorSubject` and returned. The `BehaviorSubject` will, of course, be automatically updated in real-time via the `_changes` feed, or when it has been modified by another component of your application.  
    
-💾 **Automatic Document Creation** -- If you pass in a partial document, without an `_id` field, RxCouch will automatically add it to the database, and return a `BehaviorSubject` that will, in RxCouch tradition, be automatically updated via the `_changes` feed.
+💾 **Automatic Document Creation** -- If you pass in a document, without an `_id` field, RxCouch will automatically add it to the database, and return a `BehaviorSubject` that will, of course, be automatically updated in real-time via the `_changes` feed, or when it has been modified by another component of your application.  
    
 📝 **Automatic Document Editing** -- If you pass in a complete document that doesn't match a previously received version, the new version will be sent to couchdb and saved.
   
