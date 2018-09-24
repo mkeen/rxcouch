@@ -31,7 +31,7 @@ export class CouchDB {
   private changeFeedReq: HttpRequest<any> | null = null;
   private configWatcher: any;
 
-  constructor(host: string, port: number, database_name: string) {
+  constructor(host: string, database_name: string, port: number = 5984) {
     this.database_name = new BehaviorSubject(database_name);
     this.port = new BehaviorSubject(port);
     this.host = new BehaviorSubject(host);
@@ -65,7 +65,7 @@ export class CouchDB {
           this.changeFeedReq.reconfigure(requestUrl, requestConfig, FetchBehavior.stream);
         }
 
-        this.changeFeedReq.send()
+        this.changeFeedReq.fetch()
           .subscribe(
             (update: CouchDBChanges) => {
               return this.documents.doc(update.doc).pipe(take(1)).subscribe(() => { });
@@ -107,7 +107,7 @@ export class CouchDB {
               method: 'GET'
             }
 
-          )).send();
+          )).fetch();
 
         }),
 
@@ -123,8 +123,39 @@ export class CouchDB {
         }
 
         if (this.documents.isDocument(document) && this.documents.hasId(document._id)) {
-          observer.next(this.documents.doc(document));
-          observer.complete();
+          if (this.documents.changed(document)) {
+            this.config()
+              .pipe(
+                take(1),
+                map(
+                  (config: WatcherConfig) => {
+                    let httpOptions: HttpRequestOptions = {
+                      method: 'PUT',
+                      body: JSON.stringify(document)
+                    }
+
+                    return (new HttpRequest<CouchDBDocument>(
+                      CouchUrls.document(
+                        config,
+                        (<CouchDBDocument>document)._id
+                      ), httpOptions)).fetch()
+
+                  }
+
+                ),
+
+                mergeAll()
+              )
+              .subscribe((doc: CouchDBDocument) => {
+                observer.next(this.documents.doc(doc));
+                observer.complete();
+              });
+
+          } else {
+            observer.next(this.documents.doc(document));
+            observer.complete();
+          }
+
         } else {
           this.config()
             .pipe(
@@ -143,7 +174,7 @@ export class CouchDB {
                     CouchUrls.document(
                       config,
                       (this.documents.isDocument(document)) ? document._id : undefined
-                    ), httpOptions)).send()
+                    ), httpOptions)).fetch()
                 }),
 
               mergeAll()

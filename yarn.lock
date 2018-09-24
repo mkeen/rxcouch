@@ -103,7 +103,7 @@
     "@types/whatwg-streams" "^0.0.6"
 
 "@mkeen/rxhttp@../rxhttp":
-  version "1.3.6"
+  version "1.4.0"
   dependencies:
     "@mattiasbuelens/web-streams-polyfill" "^0.1.0"
     rxjs "^6.2.2"
@@ -2855,6 +2855,10 @@ jest@^22.4.4:
   dependencies:
     import-local "^1.0.0"
     jest-cli "^22.4.4"
+
+js-sha256@^0.9.0:
+  version "0.9.0"
+  resolved "https://registry.yarnpkg.com/js-sha256/-/js-sha256-0.9.0.tgz#0b89ac166583e91ef9123644bd3c5334ce9d0966"
 
 js-tokens@^3.0.0, js-tokens@^3.0.2:
   version "3.0.2"

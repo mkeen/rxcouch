@@ -1,11 +1,22 @@
 import { BehaviorSubject, Observable, Observer, of } from 'rxjs';
 import { take, mergeAll, map } from 'rxjs/operators';
-import { CouchDBDocument } from './types';
+import { CouchDBDocument, CouchDBDocumentIndex, CouchDBHashIndex } from './types';
+import { sha256 } from 'js-sha256';
 import * as _ from "lodash";
 
 export class CouchDBDocumentCollection {
-  private documents: any = {};
+  private documents: CouchDBDocumentIndex = {};
   public ids: BehaviorSubject<string[]> = new BehaviorSubject<string[]>([]);
+  private snapshots: CouchDBHashIndex = {};
+
+  public changed(document: CouchDBDocument): boolean {
+    const snapshot = this.snapshots[document._id];
+    if (snapshot === undefined) {
+      return false;
+    }
+
+    return snapshot === sha256(JSON.stringify(document))
+  }
 
   public clear(): void {
     this.documents = {};
@@ -19,7 +30,13 @@ export class CouchDBDocumentCollection {
       }
 
       if (this.documents[document._id] !== undefined) {
-        if (!this.isFragment(document)) {
+        if (this.isDocument(document)) {
+          this.snapshots[document._id] = sha256(
+            JSON.stringify(
+              document
+            )
+          );
+
           this.documents[document._id].next(document);
         }
 
@@ -65,10 +82,6 @@ export class CouchDBDocumentCollection {
 
     });
 
-  }
-
-  private isFragment(document: CouchDBDocument): boolean {
-    return Object.keys(document).length === 1;
   }
 
 }
