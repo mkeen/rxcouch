@@ -20,14 +20,17 @@ Subscribe to documents in CouchDB easily. Don't worry about the change feed API.
    automatically add it to the database, and return a `BehaviorSubject` that  
    will, in RxCouch tradition, be automatically updated via the `_changes`  
    feed.
-  
+   
+📝 **Automatic Document Editing**
+   If you pass in a complete document that doesn't match a previously received
+   version, the new version will be sent to couchdb and saved.
   
 Powered by [rxhttp](https://www.npmjs.com/package/@mkeen/rxhttp)  
 
 install: `yarn add @mkeen/rxcouch`
 
 ### Usage
-The `CouchDB` is the what you will interact with most. Specifically, the `doc` function. An instance  
+`CouchDB` is the class you will interact with most. Specifically, the `doc` function. An instance  
 of `CouchDB` provides the `doc` function, which accepts any document that conforms to `CouchDBDocument`,  
 `CouchDBPreDocument`, or a Document Id in the form of a `string`. This function will always return a  
 `BehaviorSubject` which contains the most up to date version of the resulting document in CouchDB.  
