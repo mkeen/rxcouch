@@ -1,5 +1,5 @@
 # 🛋 RxCouch
-Subscribe to documents in CouchDB easily. Don't worry about the change feed API. Just make dope real-time UI's. Powered by [RxHttp](https://github.com/mkeen/rxhttp), which I wrote specifically with real-time strongly-typed json feeds in mind. It's ReactiveX all the way down, folks.
+Read, Write and Subscribe to documents in CouchDB with impunity. Don't worry about the change feed API. Just make efficient and dope real-time UI's. Powered by [RxHttp](https://github.com/mkeen/rxhttp), which I wrote specifically with real-time strongly-typed json feeds in mind. It's ReactiveX all the way down, folks.
 
 ### Features
 
