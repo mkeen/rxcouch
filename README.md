@@ -9,7 +9,7 @@ Read, Write and Subscribe to documents in CouchDB with impunity. Don't worry abo
    
 💾 **Automatic Document Creation** -- If you pass in a document, without an `_id` field, RxCouch will automatically add it to the database, and return a `BehaviorSubject` that will, of course, be automatically updated in real-time via the `_changes` feed, or when it has been modified by another component of your application.  
    
-📝 **Automatic Document Editing** -- If you pass in a complete document that doesn't match a previously received version, the new version will be sent to couchdb and saved.
+📝 **Automatic Document Editing** -- If you pass in a complete document that doesn't match a previously received version, the new version will be sent to couchdb and saved. Any other subscribers will be notified of the change once couchdb has successfully saved it.
   
 Powered by [rxhttp](https://www.npmjs.com/package/@mkeen/rxhttp)  
 
