@@ -5,17 +5,27 @@ import { sha256 } from 'js-sha256';
 import * as _ from "lodash";
 
 export class CouchDBDocumentCollection {
-  private documents: CouchDBDocumentIndex = {};
   public ids: BehaviorSubject<string[]> = new BehaviorSubject<string[]>([]);
+  private documents: CouchDBDocumentIndex = {};
   private snapshots: CouchDBHashIndex = {};
 
   public changed(document: CouchDBDocument): boolean {
     const snapshot = this.snapshots[document._id];
     if (snapshot === undefined) {
-      return false;
+      return true;
     }
 
-    return snapshot === sha256(JSON.stringify(document))
+    return snapshot !== sha256(JSON.stringify(document))
+  }
+
+  public snapshot(document: CouchDBDocument) {
+    return this.snapshots[document._id] = sha256(
+      JSON.stringify(
+        document
+      )
+
+    );
+
   }
 
   public clear(): void {
@@ -25,21 +35,23 @@ export class CouchDBDocumentCollection {
 
   public doc(document: CouchDBDocument | string): BehaviorSubject<CouchDBDocument> {
     return Observable.create((observer: Observer<BehaviorSubject<CouchDBDocument>>): void => {
-      if (!this.isDocument(document)) {
-        document = { _id: document };
+      if (typeof (document) === 'string') {
+        observer.next(this.documents[document]);
+        observer.complete();
+        return;
       }
 
       if (this.documents[document._id] !== undefined) {
-        if (this.isDocument(document)) {
-          this.snapshots[document._id] = sha256(
-            JSON.stringify(
-              document
-            )
-          );
+        if (!this.hasId(document._id)) {
+          this.documents[document._id] = new BehaviorSubject<CouchDBDocument>(document);
+        } else {
+          if (this.changed(document)) {
+            this.documents[document._id].next(document);
+          }
 
-          this.documents[document._id].next(document);
         }
 
+        this.snapshot(document);
         observer.next(this.documents[document._id]);
         observer.complete();
       } else {
@@ -67,10 +79,14 @@ export class CouchDBDocumentCollection {
   }
 
   public isDocument(item: any): item is CouchDBDocument {
-    return (<CouchDBDocument>item)._id !== undefined;
+    return (<CouchDBDocument>item)._rev !== undefined;
   }
 
-  private add(document: CouchDBDocument): Observable<string> {
+  public isPreDocument(item: any): item is CouchDBDocument {
+    return (<CouchDBDocument>item)._id === undefined;
+  }
+
+  public add(document: CouchDBDocument): Observable<string> {
     return Observable.create((observer: Observer<string>): void => {
       this.ids
         .pipe(

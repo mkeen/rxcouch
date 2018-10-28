@@ -1,5 +1,5 @@
-import { Observer, Observable, BehaviorSubject, combineLatest } from 'rxjs';
-import { distinctUntilChanged, take, map, filter, mergeAll } from 'rxjs/operators';
+import { Observer, Observable, BehaviorSubject, combineLatest, Subscription } from 'rxjs';
+import { distinctUntilChanged, take, map, filter, mergeAll, tap } from 'rxjs/operators';
 
 import {
   FetchBehavior,
@@ -18,7 +18,8 @@ import {
   CouchDBDesignView,
   CouchDBDesignList,
   WatcherConfig,
-  CouchDBPreDocument
+  CouchDBPreDocument,
+  CouchDBAppChangesSubscriptions
 } from './types';
 
 import { CouchDBDocumentCollection } from './couchdbdocumentcollection';
@@ -30,6 +31,8 @@ export class CouchDB {
   private port: BehaviorSubject<number>;
   private changeFeedReq: HttpRequest<any> | null = null;
   private configWatcher: any;
+  private appDocChanges: CouchDBAppChangesSubscriptions = {};
+  private changeFeedSubscription: any;
 
   constructor(host: string, database_name: string, port: number = 5984) {
     this.database_name = new BehaviorSubject(database_name);
@@ -65,10 +68,19 @@ export class CouchDB {
           this.changeFeedReq.reconfigure(requestUrl, requestConfig, FetchBehavior.stream);
         }
 
-        this.changeFeedReq.fetch()
+        if (this.changeFeedSubscription) {
+          this.changeFeedSubscription.unsubscribe();
+        }
+
+        this.changeFeedSubscription = this.changeFeedReq.fetch()
           .subscribe(
             (update: CouchDBChanges) => {
-              return this.documents.doc(update.doc).pipe(take(1)).subscribe(() => { });
+              if (this.documents.changed(update.doc)) {
+                return this.documents.doc(update.doc)
+                  .pipe(take(1))
+                  .subscribe();
+              }
+
             }
 
           );
@@ -119,7 +131,14 @@ export class CouchDB {
     return Observable
       .create((observer: Observer<BehaviorSubject<CouchDBDocument>>): void => {
         if (typeof (document) === 'string') {
-          document = { _id: document };
+          if (this.documents.hasId(document)) {
+            observer.next(this.documents.doc(document));
+            observer.complete();
+            return;
+          } else {
+            document = { _id: document };
+          }
+
         }
 
         if (this.documents.isDocument(document) && this.documents.hasId(document._id)) {
@@ -139,6 +158,11 @@ export class CouchDB {
                         config,
                         (<CouchDBDocument>document)._id
                       ), httpOptions)).fetch()
+                      .pipe(map((_d) => {
+                        (<CouchDBDocument>document)._rev = _d.rev;
+                        this.documents.snapshot(<CouchDBDocument>document);
+                        return (<CouchDBDocument>document);
+                      }))
 
                   }
 
@@ -147,12 +171,12 @@ export class CouchDB {
                 mergeAll()
               )
               .subscribe((doc: CouchDBDocument) => {
-                observer.next(this.documents.doc(doc));
+                observer.next(this.documents.doc(doc._id));
                 observer.complete();
               });
 
           } else {
-            observer.next(this.documents.doc(document));
+            observer.next(this.documents.doc((<CouchDBDocument>document)));
             observer.complete();
           }
 
@@ -163,33 +187,39 @@ export class CouchDB {
               map(
                 (config: WatcherConfig) => {
                   let httpOptions: HttpRequestOptions = {
-                    method: (this.documents.isDocument(document)) ? 'GET' : 'POST',
+                    method: (!this.documents.isPreDocument(document)) ? 'GET' : 'POST',
                   }
 
-                  if (!this.documents.isDocument(document)) {
+                  if (this.documents.isPreDocument(document)) {
                     httpOptions.body = JSON.stringify(document);
                   }
 
                   return (new HttpRequest<CouchDBDocument>(
                     CouchUrls.document(
                       config,
-                      (this.documents.isDocument(document)) ? document._id : undefined
+                      (!this.documents.isPreDocument(document)) ? (<CouchDBDocument>document)._id : undefined
                     ), httpOptions)).fetch()
                 }),
 
               mergeAll()
             )
-            .pipe(
-              map((doc): CouchDBDocument => {
-                if (doc._id === undefined) {
-                  return Object.assign(document, { _id: doc.id }); // Get the id from couchdb after saving a new document
-                } else {
-                  return doc;
+            .subscribe((doc: CouchDBDocument) => {
+              const Document = this.documents.doc(doc._id);
+              if (this.appDocChanges[doc._id] === undefined) {
+                if (this.documents.changed(doc)) {
+                  this.documents.snapshot(doc);
                 }
 
-              }))
-            .subscribe((doc: CouchDBDocument) => {
-              observer.next(this.documents.doc(doc));
+                this.appDocChanges[doc._id] = Document.subscribe((changedDoc) => {
+                  if (this.documents.changed(changedDoc)) {
+                    console.log("if we got here, there's more work to do", changedDoc);
+                  }
+
+                });
+
+              }
+
+              observer.next(Document);
               observer.complete();
             });
 

@@ -1,4 +1,4 @@
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Subscription } from 'rxjs';
 
 export type WatcherConfig = [string[], string, string, number];
 
@@ -19,6 +19,10 @@ export type CouchDBDocumentIndex = {} & {
 
 export type CouchDBHashIndex = {} & {
   [prop: string]: String;
+}
+
+export type CouchDBAppChangesSubscriptions = {} & {
+  [prop: string]: Subscription;
 }
 
 export type CouchDBDesignView = 'view';
