@@ -1,32 +1,31 @@
-import { BehaviorSubject, Subscription } from 'rxjs';
+import { BehaviorSubject, Subscription } from "rxjs";
 
-export type WatcherConfig = [string[], string, string, number];
+export type WatcherConfig = [string[], string, string, number, any];
 
 export type CouchDBDocument = {
   _id: string;
 } & {
   [prop: string]: any;
-}
+};
 
-export type CouchDBPreDocument = {
-} & {
+export type CouchDBPreDocument = {} & {
   [prop: string]: any;
-}
+};
 
 export type CouchDBDocumentIndex = {} & {
   [prop: string]: BehaviorSubject<CouchDBDocument>;
-}
+};
 
 export type CouchDBHashIndex = {} & {
   [prop: string]: String;
-}
+};
 
 export type CouchDBAppChangesSubscriptions = {} & {
   [prop: string]: Subscription;
-}
+};
 
-export type CouchDBDesignView = 'view';
-export type CouchDBDesignList = 'list';
+export type CouchDBDesignView = "view";
+export type CouchDBDesignList = "list";
 
 export interface CouchDBChange {
   rev: string;
