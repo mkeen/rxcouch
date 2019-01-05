@@ -48,7 +48,7 @@ export class CouchDB {
     host: string,
     database_name: string,
     port: number = 5984,
-    headers: any
+    headers?: any
   ) {
     this.database_name = new BehaviorSubject(database_name);
     this.port = new BehaviorSubject(port);
