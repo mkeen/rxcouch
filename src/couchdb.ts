@@ -1,34 +1,13 @@
-import {
-  Observer,
-  Observable,
-  BehaviorSubject,
-  combineLatest,
-  Subscription
-} from "rxjs";
-import {
-  distinctUntilChanged,
-  take,
-  map,
-  filter,
-  mergeAll,
-  tap
-} from "rxjs/operators";
+import { Observer, Observable, BehaviorSubject, combineLatest } from "rxjs";
+import { distinctUntilChanged, take, map, filter, mergeAll } from "rxjs/operators";
 
 import { FetchBehavior, HttpRequest, HttpRequestOptions } from "@mkeen/rxhttp";
 
 import { CouchUrls } from "./couchurls";
 
 import {
-  CouchDBChanges,
-  CouchDBChange,
-  CouchDBDesignViewResponse,
-  CouchDBDocument,
-  CouchDBDesignViewOptions,
-  CouchDBDesignView,
-  CouchDBDesignList,
-  WatcherConfig,
-  CouchDBPreDocument,
-  CouchDBAppChangesSubscriptions
+  CouchDBChanges, CouchDBDocument, CouchDBDesignViewOptions, CouchDBDesignView,
+  CouchDBDesignList, WatcherConfig, CouchDBPreDocument, CouchDBAppChangesSubscriptions
 } from "./types";
 
 import { CouchDBDocumentCollection } from "./couchdbdocumentcollection";
@@ -76,7 +55,10 @@ export class CouchDB {
           body: JSON.stringify({
             doc_ids: config[0]
           }),
-          headers: this.headers.value
+          headers: {
+            "Content-Type": "application/json",
+            ...this.headers.value
+          }
         };
 
         if (this.changeFeedReq === null) {
@@ -106,7 +88,11 @@ export class CouchDB {
                 .pipe(take(1))
                 .subscribe();
             }
-          });
+          },
+            (err) => {
+              console.log(err),
+                () => { console.log("feed has completed") }
+            });
       });
   }
 
@@ -139,7 +125,10 @@ export class CouchDB {
           ),
           {
             method: "GET",
-            headers: this.headers.value
+            headers: {
+              "Content-Type": "application/json",
+              ...this.headers.value
+            }
           }
         ).fetch();
       }),
@@ -176,7 +165,10 @@ export class CouchDB {
                   let httpOptions: HttpRequestOptions = {
                     method: "PUT",
                     body: JSON.stringify(document),
-                    headers: this.headers.value
+                    headers: {
+                      "Content-Type": "application/json",
+                      ...this.headers.value
+                    }
                   };
 
                   return new HttpRequest<CouchDBDocument>(
@@ -212,7 +204,10 @@ export class CouchDB {
                   method: !this.documents.isPreDocument(document)
                     ? "GET"
                     : "POST",
-                  headers: this.headers.value
+                  headers: {
+                    "Content-Type": "application/json",
+                    ...this.headers.value
+                  }
                 };
 
                 if (this.documents.isPreDocument(document)) {
@@ -233,7 +228,7 @@ export class CouchDB {
               mergeAll()
             )
             .subscribe((doc: CouchDBDocument) => {
-              const Document = this.documents.doc(doc._id);
+              const Document = this.documents.doc(doc);
               if (this.appDocChanges[doc._id] === undefined) {
                 if (this.documents.changed(doc)) {
                   this.documents.snapshot(doc);
