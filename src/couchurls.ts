@@ -8,9 +8,7 @@ export namespace CouchUrls {
     designType: string = "view",
     options?: any
   ): string {
-    let base = `${prefix(
-      config
-    )}/_design/${designName}/_${designType}/${designTypeName}`;
+    let base = `${prefix(config)}/_design/${designName}/_${designType}/${designTypeName}`;
     if (options) {
       base += "?";
       for (let name in options) {
@@ -41,8 +39,6 @@ export namespace CouchUrls {
   }
 
   export function watch(config: WatcherConfig): string {
-    return `${prefix(
-      config
-    )}/_changes?include_docs=true&feed=continuous&heartbeat=60000&timeout=300000&filter=_doc_ids&since=now`;
+    return `${prefix(config)}/_changes?include_docs=true&feed=continuous&heartbeat=60000&timeout=300000&filter=_doc_ids&since=now`;
   }
 }
