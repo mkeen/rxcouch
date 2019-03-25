@@ -34,7 +34,7 @@ export namespace CouchUrls {
   }
 
   export function prefix(config: WatcherConfig): string {
-    return `http://${config[2]}:${config[3]}/${config[1]}`
+    return `http://${config[2]}:${config[4]}/${config[1]}`
   }
 
   export function watch(config: WatcherConfig): string {
