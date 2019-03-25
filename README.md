@@ -6,7 +6,7 @@ CouchDB is a fantastic database for powering real-time user interfaces, but to t
 
 ### Features
 
-📡 **Automatic Change Notification** -- RxCouch keeps track of all documents that you touch. RxCouch is always subscribed to CouchDB's _`changes` feed and utilizes the `_doc_ids` filter to ensure you only get the changes to relevant documents. A document is a `BehaviorSubject`. RxCouch is real-time by default. RxCouch tracks all documents that you get, modify, or create by default, but you can also specify (and update at your leisure) a list of ids that you would like to subscribe to updates for.
+📡 **Automatic Change Notification** -- RxCouch keeps track of all documents that you touch. RxCouch is always subscribed to CouchDB's `_changes` feed and utilizes the `_doc_ids` filter to ensure you only get the changes to relevant documents. A document is a `BehaviorSubject`. RxCouch is real-time by default. RxCouch tracks all documents that you get, modify, or create by default, but you can also specify (and update at your leisure) a list of ids that you would like to subscribe to updates for.
    
 😎 **Automatic Document Fetching** -- If you subscribe to a document id that RxCouch hasn't seen yet, it will be automatically and transparently fetched, before being injected into a `BehaviorSubject` and returned. The `BehaviorSubject` will, of course, be automatically updated in real-time via the `_changes` feed, or when it has been modified by another component of your application.  
    
