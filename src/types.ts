@@ -1,6 +1,7 @@
 import { BehaviorSubject, Subscription } from 'rxjs';
+import { HttpRequestHeaders } from '@mkeen/rxhttp/dist/types';
 
-export type WatcherConfig = [string[], string, string, number];
+export type WatcherConfig = [string[], string, string, CouchDBHeaders, number];
 
 export type CouchDBDocument = {
   _id: string;
@@ -37,6 +38,10 @@ export interface CouchDBChanges {
   id: string;
   seq: string;
   doc: CouchDBDocument;
+}
+
+export interface CouchDBHeaders extends HttpRequestHeaders {
+  Cookie: string;
 }
 
 export interface CouchDBDesignViewResponse {
