@@ -57,16 +57,16 @@ export class CouchDB {
       }))
       .subscribe((config: WatcherConfig) => {
         const requestUrl = CouchUrls.watch(config);
-        const requestConfig = {
+        let requestConfig: any = {
           method: 'POST',
-          headers: {
-            ...config[3]
-          },
-
           body: JSON.stringify({
             'doc_ids': config[0]
           })
 
+        }
+
+        if (config[3] != null) {
+          requestConfig['headers'] = config[3]
         }
 
         if (this.changeFeedReq === null) {
@@ -116,6 +116,15 @@ export class CouchDB {
     return this.config()
       .pipe(take(1),
         map((config: WatcherConfig) => {
+          let requestConfig: any = undefined;
+
+          if (config[3] != null) {
+            requestConfig = {
+              headers: config[3]
+            }
+
+          }
+
           return (new HttpRequest<any>(
             CouchUrls.design(
               config,
@@ -123,13 +132,7 @@ export class CouchDB {
               designTypeName,
               designType,
               options
-            ), {
-              method: 'GET',
-              headers: {
-                ...config[3]
-              }
-
-            }
+            ), requestConfig
 
           )).fetch();
 
@@ -162,11 +165,11 @@ export class CouchDB {
                   (config: WatcherConfig) => {
                     let httpOptions: HttpRequestOptions = {
                       method: 'PUT',
-                      body: JSON.stringify(document),
-                      headers: {
-                        ...config[3]
-                      }
+                      body: JSON.stringify(document)
+                    }
 
+                    if (config[3] !== null) {
+                      httpOptions.headers = config[3];
                     }
 
                     return (new HttpRequest<CouchDBDocument>(
@@ -204,10 +207,10 @@ export class CouchDB {
                 (config: WatcherConfig) => {
                   let httpOptions: HttpRequestOptions = {
                     method: (!this.documents.isPreDocument(document)) ? 'GET' : 'POST',
-                    headers: {
-                      ...config[3]
-                    }
+                  }
 
+                  if (config[3] !== null) {
+                    httpOptions.headers = config[3];
                   }
 
                   if (this.documents.isPreDocument(document)) {
