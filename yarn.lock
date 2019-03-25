@@ -9,10 +9,10 @@
   dependencies:
     "@types/whatwg-streams" "^0.0.6"
 
-"@mkeen/rxhttp@1.5.0":
-  version "1.5.0"
-  resolved "https://registry.yarnpkg.com/@mkeen/rxhttp/-/rxhttp-1.5.0.tgz#a6d518a9ba39a3e92aa310b8467169a01c9c6218"
-  integrity sha512-5p2RGi4JqNt5rav4YUemJtvJTvqiixYypetTaw58Wi+rBr85Ws8JSIYSSkHTSerGBoUzY0cx0CS0RUrC9tykgA==
+"@mkeen/rxhttp@1.5.2":
+  version "1.5.2"
+  resolved "https://registry.yarnpkg.com/@mkeen/rxhttp/-/rxhttp-1.5.2.tgz#96643ae2ac19f5216ebf6c122f421fe1f6171d71"
+  integrity sha512-2LOFoiz6QwYLRJjlj/1Mm1TxPFf2MPiCuTP/85i9VynWeCSilO1/4rKk4ITrkHh4umYMYLXxboKGxZiOBXTTgw==
   dependencies:
     "@mattiasbuelens/web-streams-polyfill" "^0.1.0"
     rxjs "^6.2.2"
