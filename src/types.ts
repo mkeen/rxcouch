@@ -41,7 +41,7 @@ export interface CouchDBChanges {
 }
 
 export interface CouchDBHeaders extends HttpRequestHeaders {
-  Cookie: string;
+  Cookie?: any;
 }
 
 export interface CouchDBDesignViewResponse {

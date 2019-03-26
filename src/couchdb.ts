@@ -36,7 +36,7 @@ export class CouchDB {
   private appDocChanges: CouchDBAppChangesSubscriptions = {};
   private changeFeedSubscription: any;
 
-  constructor(host: string, db_name: string, headers: CouchDBHeaders, port: number = 5984) {
+  constructor(host: string, db_name: string, headers: CouchDBHeaders = {}, port: number = 5984) {
     this.database_name = new BehaviorSubject(db_name);
     this.port = new BehaviorSubject(port);
     this.host = new BehaviorSubject(host);
