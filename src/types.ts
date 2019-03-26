@@ -36,7 +36,8 @@ export interface CouchDBChange {
 export interface CouchDBChanges {
   changes: CouchDBChange[];
   id: string;
-  seq: string;
+  seq?: string;
+  last_seq?: string;
   doc: CouchDBDocument;
 }
 
