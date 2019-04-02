@@ -54,45 +54,52 @@ export class CouchDB {
         }
 
         return !idsEmpty;
-      }))
-      .subscribe((config: WatcherConfig) => {
-        const requestUrl = CouchUrls.watch(config);
-        let requestConfig: any = {
-          method: 'POST',
-          body: JSON.stringify({
-            'doc_ids': config[0]
-          })
+      })).subscribe(
+        this.changeFeedConnection
+      );
+
+  }
+
+  public changeFeedConnection(config: WatcherConfig) {
+    const requestUrl = CouchUrls.watch(config);
+    let requestConfig: any = {
+      method: 'POST',
+      body: JSON.stringify({
+        'doc_ids': config[0]
+      })
+
+    }
+
+    if (config[3] != null) {
+      requestConfig['headers'] = config[3]
+    }
+
+    if (this.changeFeedReq === null) {
+      this.changeFeedReq = new HttpRequest<CouchDBChanges>(requestUrl, requestConfig, FetchBehavior.stream);
+    } else {
+      this.changeFeedReq.reconfigure(requestUrl, requestConfig, FetchBehavior.stream);
+    }
+
+    if (this.changeFeedSubscription) {
+      this.changeFeedSubscription.unsubscribe();
+    }
+
+    this.changeFeedSubscription = this.changeFeedReq.fetch()
+      .subscribe(
+        (update: CouchDBChanges) => {
+          if (this.documents.changed(update.doc)) {
+            return this.documents.doc(update.doc)
+              .pipe(take(1))
+              .subscribe();
+          }
+
+          if (update.last_seq !== undefined) {
+            this.changeFeedConnection(config);
+          }
 
         }
 
-        if (config[3] != null) {
-          requestConfig['headers'] = config[3]
-        }
-
-        if (this.changeFeedReq === null) {
-          this.changeFeedReq = new HttpRequest<CouchDBChanges>(requestUrl, requestConfig, FetchBehavior.stream);
-        } else {
-          this.changeFeedReq.reconfigure(requestUrl, requestConfig, FetchBehavior.stream);
-        }
-
-        if (this.changeFeedSubscription) {
-          this.changeFeedSubscription.unsubscribe();
-        }
-
-        this.changeFeedSubscription = this.changeFeedReq.fetch()
-          .subscribe(
-            (update: CouchDBChanges) => {
-              if (this.documents.changed(update.doc)) {
-                return this.documents.doc(update.doc)
-                  .pipe(take(1))
-                  .subscribe();
-              }
-
-            }
-
-          );
-
-      });
+      );
 
   }
 
