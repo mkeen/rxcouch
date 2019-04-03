@@ -54,9 +54,9 @@ export class CouchDB {
         }
 
         return !idsEmpty;
-      })).subscribe(
-        this.changeFeedConnection
-      );
+      })).subscribe((config: WatcherConfig) => {
+        this.changeFeedConnection(config)
+      });
 
   }
 
@@ -71,7 +71,7 @@ export class CouchDB {
     }
 
     if (config[3] != null) {
-      requestConfig['headers'] = config[3]
+      requestConfig['headers'] = config[3];
     }
 
     if (this.changeFeedReq === null) {
@@ -87,6 +87,7 @@ export class CouchDB {
     this.changeFeedSubscription = this.changeFeedReq.fetch()
       .subscribe(
         (update: CouchDBChanges) => {
+          console.log(update);
           if (this.documents.changed(update.doc)) {
             return this.documents.doc(update.doc)
               .pipe(take(1))
@@ -126,10 +127,7 @@ export class CouchDB {
           let requestConfig: any = undefined;
 
           if (config[3] != null) {
-            requestConfig = {
-              headers: config[3]
-            }
-
+            requestConfig = { headers: config[3] };
           }
 
           return (new HttpRequest<any>(
@@ -217,11 +215,11 @@ export class CouchDB {
                   }
 
                   if (config[3] !== null) {
-                    httpOptions.headers = config[3];
+                    httpOptions['headers'] = config[3];
                   }
 
                   if (this.documents.isPreDocument(document)) {
-                    httpOptions.body = JSON.stringify(document);
+                    httpOptions['body'] = JSON.stringify(document);
                   }
 
                   return (new HttpRequest<CouchDBDocument>(

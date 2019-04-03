@@ -10,6 +10,7 @@ export class CouchDBDocumentCollection {
   private snapshots: CouchDBHashIndex = {};
 
   public changed(document: CouchDBDocument): boolean {
+    console.log(document)
     const snapshot = this.snapshots[document._id];
     if (snapshot === undefined) {
       return true;
