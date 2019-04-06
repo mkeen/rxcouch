@@ -117,7 +117,7 @@ export class CouchDB {
 
   }
 
-  private authenticate(
+  public authenticate(
     username: string = '',
     password: string = '',
   ): void {
