@@ -1,4 +1,4 @@
-import { Observer, Observable, BehaviorSubject, combineLatest, Subscription } from 'rxjs';
+import { Observer, Observable, BehaviorSubject, combineLatest, Subscription, EMPTY } from 'rxjs';
 import { distinctUntilChanged, take, map, filter, mergeAll, tap } from 'rxjs/operators';
 
 import {
@@ -117,20 +117,20 @@ export class CouchDB {
 
   }
 
-  public authenticate(
-    username: string,
-    password: string
+  private authenticate(
+    username: string = '',
+    password: string = '',
   ): void {
     this.config()
       .pipe(take(1))
       .subscribe((config: WatcherConfig) => {
         let requestConfig: HttpRequestOptions = {
           method: 'POST',
-          referrerPolicy: 'no-referrer',
           body: JSON.stringify({
             'username': username,
             'password': password
           })
+
         };
 
         new HttpRequest<CouchDBAuthenticationResponse>(
@@ -139,7 +139,7 @@ export class CouchDB {
         ).fetch()
           .pipe(take(1))
           .subscribe(
-            (auth: CouchDBAuthenticationResponse) => console.log(auth)
+            (auth: CouchDBAuthenticationResponse) => EMPTY
           );
 
       });
