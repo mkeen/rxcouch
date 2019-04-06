@@ -4,7 +4,8 @@ import { distinctUntilChanged, take, map, filter, mergeAll, tap } from 'rxjs/ope
 import {
   FetchBehavior,
   HttpRequest,
-  HttpRequestOptions
+  HttpRequestOptions,
+  HttpRequestHeaders
 } from '@mkeen/rxhttp';
 
 import { CouchUrls } from './couchurls';
@@ -20,32 +21,38 @@ import {
   WatcherConfig,
   CouchDBPreDocument,
   CouchDBAppChangesSubscriptions,
-  CouchDBHeaders
+  CouchDBHeaders,
+  CouchDBAuthenticationResponse
 } from './types';
+
+import {
+  IDS,
+  DATABASE_NAME,
+  HOST,
+  PORT
+} from './enums';
 
 import { CouchDBDocumentCollection } from './couchdbdocumentcollection';
 
 export class CouchDB {
   public documents: CouchDBDocumentCollection = new CouchDBDocumentCollection();
-  private database_name: BehaviorSubject<string>;
+  private databaseName: BehaviorSubject<string>;
   private host: BehaviorSubject<string>;
   private port: BehaviorSubject<number>;
-  private headers: BehaviorSubject<CouchDBHeaders>;
   private changeFeedReq: HttpRequest<any> | null = null;
   private configWatcher: any;
   private appDocChanges: CouchDBAppChangesSubscriptions = {};
   private changeFeedSubscription: any;
 
-  constructor(host: string, db_name: string, headers: CouchDBHeaders = {}, port: number = 5984) {
-    this.database_name = new BehaviorSubject(db_name);
-    this.port = new BehaviorSubject(port);
-    this.host = new BehaviorSubject(host);
-    this.headers = new BehaviorSubject(headers);
+  constructor(host: string, dbName: string, port: number = 5984) {
+    this.databaseName = new BehaviorSubject<string>(dbName);
+    this.port = new BehaviorSubject<number>(port);
+    this.host = new BehaviorSubject<string>(host);
 
     this.configWatcher = this.config()
       .pipe(distinctUntilChanged())
       .pipe(filter((config: WatcherConfig) => {
-        const idsEmpty = config[0].length === 0;
+        const idsEmpty = config[IDS].length === 0;
         if (idsEmpty) {
           if (this.changeFeedReq instanceof HttpRequest) {
             this.changeFeedReq.disconnect();
@@ -65,13 +72,9 @@ export class CouchDB {
     let requestConfig: any = {
       method: 'POST',
       body: JSON.stringify({
-        'doc_ids': config[0]
+        'doc_ids': config[IDS]
       })
 
-    }
-
-    if (config[3] != null) {
-      requestConfig['headers'] = config[3];
     }
 
     if (this.changeFeedReq === null) {
@@ -107,11 +110,39 @@ export class CouchDB {
   public config(): Observable<WatcherConfig> {
     return combineLatest(
       this.documents.ids,
-      this.database_name,
+      this.databaseName,
       this.host,
-      this.headers,
       this.port
     );
+
+  }
+
+  public authenticate(
+    username: string,
+    password: string
+  ): void {
+    this.config()
+      .pipe(take(1))
+      .subscribe((config: WatcherConfig) => {
+        let requestConfig: HttpRequestOptions = {
+          method: 'POST',
+          referrerPolicy: 'no-referrer',
+          body: JSON.stringify({
+            'username': username,
+            'password': password
+          })
+        };
+
+        new HttpRequest<CouchDBAuthenticationResponse>(
+          CouchUrls.authenticate(config, username, password),
+          requestConfig, FetchBehavior.simple
+        ).fetch()
+          .pipe(take(1))
+          .subscribe(
+            (auth: CouchDBAuthenticationResponse) => console.log(auth)
+          );
+
+      });
 
   }
 
@@ -124,11 +155,7 @@ export class CouchDB {
     return this.config()
       .pipe(take(1),
         map((config: WatcherConfig) => {
-          let requestConfig: any = undefined;
-
-          if (config[3] != null) {
-            requestConfig = { headers: config[3] };
-          }
+          let requestConfig: HttpRequestOptions = {};
 
           return (new HttpRequest<any>(
             CouchUrls.design(
@@ -138,7 +165,6 @@ export class CouchDB {
               designType,
               options
             ), requestConfig
-
           )).fetch();
 
         }),
@@ -171,10 +197,6 @@ export class CouchDB {
                     let httpOptions: HttpRequestOptions = {
                       method: 'PUT',
                       body: JSON.stringify(document)
-                    }
-
-                    if (config[3] !== null) {
-                      httpOptions.headers = config[3];
                     }
 
                     return (new HttpRequest<CouchDBDocument>(
@@ -214,12 +236,8 @@ export class CouchDB {
                     method: (!this.documents.isPreDocument(document)) ? 'GET' : 'POST',
                   }
 
-                  if (config[3] !== null) {
-                    httpOptions['headers'] = config[3];
-                  }
-
                   if (this.documents.isPreDocument(document)) {
-                    httpOptions['body'] = JSON.stringify(document);
+                    httpOptions.body = JSON.stringify(document);
                   }
 
                   return (new HttpRequest<CouchDBDocument>(

@@ -1,5 +1,12 @@
 import { WatcherConfig } from './types';
 
+import {
+  IDS,
+  DATABASE_NAME,
+  HOST,
+  PORT
+} from './enums';
+
 export namespace CouchUrls {
   export function design(
     config: WatcherConfig,
@@ -8,7 +15,7 @@ export namespace CouchUrls {
     designType: string = 'view',
     options?: any
   ): string {
-    let base = `${prefix(config)}/_design/${designName}/_${designType}/${designTypeName}`;
+    let base = `${prefix(config)}/${config[DATABASE_NAME]}/_design/${designName}/_${designType}/${designTypeName}`;
     if (options) {
       base += '?'
       for (let name in options) {
@@ -25,7 +32,7 @@ export namespace CouchUrls {
   }
 
   export function document(config: WatcherConfig, docId?: string): string {
-    let url = `${prefix(config)}`;
+    let url = `${prefix(config)}/${config[DATABASE_NAME]}`;
     if (docId) {
       url += `/${docId}`;
     }
@@ -34,11 +41,15 @@ export namespace CouchUrls {
   }
 
   export function prefix(config: WatcherConfig): string {
-    return `http://${config[2]}:${config[4]}/${config[1]}`
+    return `http://${config[HOST]}:${config[PORT]}`
   }
 
   export function watch(config: WatcherConfig): string {
-    return `${prefix(config)}/_changes?include_docs=true&feed=continuous&filter=_doc_ids&since=now`;
+    return `${prefix(config)}/${config[DATABASE_NAME]}/_changes?include_docs=true&feed=continuous&filter=_doc_ids&since=now`;
+  }
+
+  export function authenticate(config: WatcherConfig, username: string, password: string) {
+    return `${prefix(config)}/_session`;
   }
 
 }
