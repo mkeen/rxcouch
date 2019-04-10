@@ -8,8 +8,8 @@ export interface CouchDBAuthenticationStrategy {
 export class CouchDBOpenAuthenticationStrategy implements CouchDBAuthenticationStrategy {
   public authenticate(couchDbInstance: CouchDB): Observable<void> {
     return Observable
-      .create((observer: Observer<any>): void => {
-        observer.complete();
+      .create((observer: Observer<void>): void => {
+        observer.next(undefined);
       });
 
   }
@@ -24,10 +24,10 @@ export class CouchDBCookieAuthenticationStrategy implements CouchDBAuthenticatio
 
   public authenticate(couchDbInstance: CouchDB): Observable<void> {
     return Observable
-      .create((observer: Observer<any>): void => {
+      .create((observer: Observer<void>): void => {
         couchDbInstance.authenticate(this.username, this.password)
           .subscribe(() => {
-            observer.complete();
+            observer.next(undefined);
           });
 
       });
