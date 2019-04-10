@@ -13,6 +13,8 @@ CouchDB is a fantastic database for powering real-time user interfaces, but to t
 💾 **Automatic Document Creation** -- If you pass in a document, without an `_id` field, RxCouch will automatically add it to the database, and return a `BehaviorSubject` that will, of course, be automatically updated in real-time via the `_changes` feed, or when it has been modified by another component of your application.  
    
 📝 **Automatic Document Editing** -- If you pass in a complete document that doesn't match a previously received version, the new version will be sent to couchdb and saved. Any other subscribers will be notified of the change once couchdb has successfully saved it.
+
+🔐 **Authentication** -- Currently supports open CouchDB databases as well as protected databases. Uses cookie-based auth, which is the secure, and recommended method.
   
 Powered by [rxhttp](https://www.npmjs.com/package/@mkeen/rxhttp)  
 
@@ -34,7 +36,7 @@ is super readable if you need to dive in further.
 ### Examples
 
 ```
-import { CouchDB } from '@mkeen/rxcouch';
+import { CouchDB, CouchDBCookieAuthenticationStrategy } from '@mkeen/rxcouch';
 
 interface Person implements CouchDBDocument {
   name: String;
@@ -42,7 +44,7 @@ interface Person implements CouchDBDocument {
 }
 
 // Connect to a CouchDB Database
-this.couch = new CouchDB('127.0.0.1', 5984, 'items');
+this.couch = new CouchDB({host: '127.0.0.1', port: 5984, dbName: 'items'}, new CouchDBCookieAuthenticationStrategy('admin', 'admin'));
 
 // Get the latest version of a known document.
 this.couch.doc('4b75030702ae88064daf8182ca00364e')   // Pass in a document id of a known document,
