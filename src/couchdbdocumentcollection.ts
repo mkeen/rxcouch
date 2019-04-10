@@ -10,21 +10,26 @@ export class CouchDBDocumentCollection {
   private snapshots: CouchDBHashIndex = {};
 
   public changed(document: CouchDBDocument): boolean {
-    console.log(document)
-    const snapshot = this.snapshots[document._id];
+    let docCopy = JSON.parse(JSON.stringify(document));
+    delete docCopy._rev;
+
+    const snapshot = this.snapshots[docCopy._id];
     if (snapshot === undefined) {
       return true;
     }
 
-    return snapshot !== sha256(JSON.stringify(document))
+    return snapshot !== sha256(
+      JSON.stringify(docCopy)
+    );
+
   }
 
   public snapshot(document: CouchDBDocument) {
-    return this.snapshots[document._id] = sha256(
-      JSON.stringify(
-        document
-      )
+    let docCopy = JSON.parse(JSON.stringify(document));
+    delete docCopy._rev;
 
+    return this.snapshots[document._id] = sha256(
+      JSON.stringify(docCopy)
     );
 
   }
@@ -35,44 +40,22 @@ export class CouchDBDocumentCollection {
   }
 
   public doc(document: CouchDBDocument | string): BehaviorSubject<CouchDBDocument> {
-    return Observable.create((observer: Observer<BehaviorSubject<CouchDBDocument>>): void => {
-      if (typeof (document) === 'string') {
-        observer.next(this.documents[document]);
-        observer.complete();
-        return;
+    if (typeof (document) === 'string') {
+      return this.documents[document];
+    }
+
+    if (this.hasId(document._id)) {
+      if (this.changed(document)) {
+        this.documents[document._id].next(document);
       }
 
-      if (this.documents[document._id] !== undefined) {
-        if (!this.hasId(document._id)) {
-          this.documents[document._id] = new BehaviorSubject<CouchDBDocument>(document);
-        } else {
-          if (this.changed(document)) {
-            this.documents[document._id].next(document);
-          }
+      return this.documents[document._id];
+    } else {
+      this.add(document);
+    }
 
-        }
-
-        this.snapshot(document);
-        observer.next(this.documents[document._id]);
-        observer.complete();
-      } else {
-        this.add(document)
-          .subscribe((document_id: string) => {
-            this.ids.next(
-              _.sortBy(
-                _.union(this.ids.value, [document_id])
-              ));
-
-            observer.next(this.documents[document_id]);
-            observer.complete();
-          });
-
-      }
-
-    }).pipe(
-      mergeAll()
-    );
-
+    this.snapshot(document);
+    return this.documents[document._id];
   }
 
   public hasId(document_id: string): boolean {
@@ -87,18 +70,12 @@ export class CouchDBDocumentCollection {
     return (<CouchDBDocument>item)._id === undefined;
   }
 
-  public add(document: CouchDBDocument): Observable<string> {
-    return Observable.create((observer: Observer<string>): void => {
-      this.ids
-        .pipe(
-          take(1)
-        ).subscribe((ids: string[]): void => {
-          this.documents[document._id] = new BehaviorSubject<CouchDBDocument>(document);
-          observer.next(document._id);
-        });
-
-    });
-
+  public add(document: CouchDBDocument): void {
+    this.documents[document._id] = new BehaviorSubject<CouchDBDocument>(document);
+    this.ids.next(
+      _.sortBy(
+        _.union(this.ids.value, [document._id])
+      ));
   }
 
 }

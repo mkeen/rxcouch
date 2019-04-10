@@ -29,8 +29,16 @@ export type CouchDBAppChangesSubscriptions = {} & {
 export type CouchDBDesignView = 'view';
 export type CouchDBDesignList = 'list';
 
+export type CouchDBAuthentication = (username: string, password: string) => void;
+
 export interface CouchDBChange {
   rev: string;
+}
+
+export interface RxCouchConfig {
+  host?: string;
+  dbName: string;
+  port?: number;
 }
 
 export interface CouchDBChanges {

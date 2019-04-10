@@ -1,5 +1,5 @@
-import { Observer, Observable, BehaviorSubject, combineLatest, Subscription, EMPTY } from 'rxjs';
-import { distinctUntilChanged, take, map, filter, mergeAll, tap } from 'rxjs/operators';
+import { Observer, Observable, Subject, BehaviorSubject, combineLatest, Subscription, EMPTY, observable } from 'rxjs';
+import { distinctUntilChanged, take, map, filter, mergeAll, tap, skip } from 'rxjs/operators';
 
 import {
   FetchBehavior,
@@ -11,6 +11,13 @@ import {
 import { CouchUrls } from './couchurls';
 
 import {
+  CouchDBAuthenticationStrategy,
+  CouchDBOpenAuthenticationStrategy
+} from './couchdbauthenticationstrategy';
+
+import {
+  RxCouchConfig,
+  CouchDBAuthentication,
   CouchDBChanges,
   CouchDBChange,
   CouchDBDesignViewResponse,
@@ -36,33 +43,74 @@ import { CouchDBDocumentCollection } from './couchdbdocumentcollection';
 
 export class CouchDB {
   public documents: CouchDBDocumentCollection = new CouchDBDocumentCollection();
+  private changeFeedReq: HttpRequest<any> | null = null;
   private databaseName: BehaviorSubject<string>;
   private host: BehaviorSubject<string>;
   private port: BehaviorSubject<number>;
-  private changeFeedReq: HttpRequest<any> | null = null;
   private configWatcher: any;
   private appDocChanges: CouchDBAppChangesSubscriptions = {};
   private changeFeedSubscription: any;
 
-  constructor(host: string, dbName: string, port: number = 5984) {
-    this.databaseName = new BehaviorSubject<string>(dbName);
-    this.port = new BehaviorSubject<number>(port);
-    this.host = new BehaviorSubject<string>(host);
+  constructor(
+    rxCouchConfig: RxCouchConfig,
+    private auth: CouchDBAuthenticationStrategy = new CouchDBOpenAuthenticationStrategy()
+  ) {
+    this.databaseName = new BehaviorSubject<string>(rxCouchConfig.dbName);
+    this.port = new BehaviorSubject<number>(rxCouchConfig.port || 5984);
+    this.host = new BehaviorSubject<string>(rxCouchConfig.host || '127.0.0.1');
 
-    this.configWatcher = this.config()
-      .pipe(distinctUntilChanged())
-      .pipe(filter((config: WatcherConfig) => {
-        const idsEmpty = config[IDS].length === 0;
-        if (idsEmpty) {
-          if (this.changeFeedReq instanceof HttpRequest) {
-            this.changeFeedReq.disconnect();
-          }
+    auth.authenticate(this)
+      .pipe(take(1))
+      .subscribe(() => {
+        this.configWatcher = this.config()
+          .pipe(distinctUntilChanged())
+          .pipe(filter((config: WatcherConfig) => {
+            const idsEmpty = config[IDS].length === 0;
+            if (idsEmpty) {
+              if (this.changeFeedReq instanceof HttpRequest) {
+                this.changeFeedReq.disconnect();
+              }
 
-        }
+            }
 
-        return !idsEmpty;
-      })).subscribe((config: WatcherConfig) => {
-        this.changeFeedConnection(config)
+            return !idsEmpty;
+          })).subscribe((config: WatcherConfig) => {
+            this.changeFeedConnection(config);
+          });
+
+      })
+
+  }
+
+  public authenticate(
+    username: string = '',
+    password: string = '',
+  ): Observable<void> {
+    return Observable
+      .create((observer: Observer<CouchDBAuthenticationResponse>): void => {
+        this.config()
+          .pipe(take(1))
+          .subscribe((config: WatcherConfig) => {
+            let requestConfig: HttpRequestOptions = {
+              method: 'POST',
+              body: JSON.stringify({
+                'username': username,
+                'password': password
+              })
+
+            };
+
+            new HttpRequest<CouchDBAuthenticationResponse>(
+              CouchUrls.authenticate(config, username, password),
+              requestConfig, FetchBehavior.simple
+            ).fetch()
+              .pipe(take(1))
+              .subscribe(
+                (auth: CouchDBAuthenticationResponse) => observer.next(auth)
+              );
+
+          });
+
       });
 
   }
@@ -90,20 +138,18 @@ export class CouchDB {
     this.changeFeedSubscription = this.changeFeedReq.fetch()
       .subscribe(
         (update: CouchDBChanges) => {
-          console.log(update);
-          if (this.documents.changed(update.doc)) {
-            return this.documents.doc(update.doc)
-              .pipe(take(1))
-              .subscribe();
-          }
-
           if (update.last_seq !== undefined) {
             this.changeFeedConnection(config);
+          } else {
+            if (this.documents.changed(update.doc)) {
+              //this.stopListeningForLocalChanges(update.doc._id);
+              this.documents.doc(update.doc);
+              //this.listenForLocalChanges(update.doc._id);
+            }
+
           }
 
-        }
-
-      );
+        });
 
   }
 
@@ -114,35 +160,6 @@ export class CouchDB {
       this.host,
       this.port
     );
-
-  }
-
-  public authenticate(
-    username: string = '',
-    password: string = '',
-  ): void {
-    this.config()
-      .pipe(take(1))
-      .subscribe((config: WatcherConfig) => {
-        let requestConfig: HttpRequestOptions = {
-          method: 'POST',
-          body: JSON.stringify({
-            'username': username,
-            'password': password
-          })
-
-        };
-
-        new HttpRequest<CouchDBAuthenticationResponse>(
-          CouchUrls.authenticate(config, username, password),
-          requestConfig, FetchBehavior.simple
-        ).fetch()
-          .pipe(take(1))
-          .subscribe(
-            (auth: CouchDBAuthenticationResponse) => EMPTY
-          );
-
-      });
 
   }
 
@@ -173,105 +190,140 @@ export class CouchDB {
         take(1));
   }
 
-  public doc(document: CouchDBDocument | CouchDBPreDocument | string): BehaviorSubject<CouchDBDocument> {
+  private stopListeningForLocalChanges(doc_id: string): void {
+    if (this.appDocChanges[doc_id] !== undefined) {
+      this.appDocChanges[doc_id].unsubscribe();
+      delete this.appDocChanges[doc_id];
+    }
+
+  }
+
+  private listenForLocalChanges(doc_id: string): void {
+    if (this.appDocChanges[doc_id] === undefined) {
+      this.appDocChanges[doc_id] = this.documents.doc(doc_id)
+        .pipe(skip(1))
+        .subscribe((changedDoc) => {
+          if (this.documents.changed(changedDoc)) {
+            this.stopListeningForLocalChanges(changedDoc._id);
+            this.doc(changedDoc).subscribe((e) => { });
+          }
+
+        });
+
+    }
+
+  }
+
+  public doc(document: CouchDBDocument | CouchDBPreDocument | string): Observable<BehaviorSubject<CouchDBDocument>> {
     return Observable
       .create((observer: Observer<BehaviorSubject<CouchDBDocument>>): void => {
         if (typeof (document) === 'string') {
           if (this.documents.hasId(document)) {
             observer.next(this.documents.doc(document));
+            this.listenForLocalChanges(document);
             observer.complete();
-            return;
           } else {
-            document = { _id: document };
-          }
-
-        }
-
-        if (this.documents.isDocument(document) && this.documents.hasId(document._id)) {
-          if (this.documents.changed(document)) {
             this.config()
               .pipe(
                 take(1),
                 map(
                   (config: WatcherConfig) => {
                     let httpOptions: HttpRequestOptions = {
-                      method: 'PUT',
+                      method: 'GET',
+                    }
+
+                    return (new HttpRequest<CouchDBDocument>(
+                      CouchUrls.document(
+                        config,
+                      ), httpOptions)).fetch()
+                  }),
+
+                mergeAll()
+              )
+              .subscribe((doc: CouchDBDocument) => {
+                this.documents.snapshot(doc);
+                this.listenForLocalChanges(doc._id);
+                observer.next(this.documents.doc(doc));
+                observer.complete();
+              });
+
+          }
+
+        } else {
+          if (this.documents.isDocument(document)) {
+            if (this.documents.changed(document)) {
+              this.config()
+                .pipe(
+                  take(1),
+                  map(
+                    (config: WatcherConfig) => {
+                      let httpOptions: HttpRequestOptions = {
+                        method: 'PUT',
+                        body: JSON.stringify(document)
+                      }
+
+                      return (new HttpRequest<CouchDBDocument>(
+                        CouchUrls.document(
+                          config,
+                          document._id
+                        ), httpOptions)).fetch()
+                        .pipe(map((_d) => {
+                          if (!_d.error) {
+                            document._rev = _d.rev;
+                            this.documents.doc(document);
+                            this.documents.snapshot(<CouchDBDocument>document);
+                            this.listenForLocalChanges(document._id);
+                          }
+
+                          return (<CouchDBDocument>document);
+                        }));
+
+                    }
+
+                  ),
+
+                  mergeAll()
+                )
+                .subscribe((doc: CouchDBDocument) => {
+                  observer.next(this.documents.doc(doc));
+                  observer.complete();
+                });
+            } else {
+              observer.next(this.documents.doc(document._id));
+              observer.complete();
+            }
+
+          } else {
+            this.config()
+              .pipe(
+                take(1),
+                map(
+                  (config: WatcherConfig) => {
+                    let httpOptions: HttpRequestOptions = {
+                      method: 'POST',
                       body: JSON.stringify(document)
                     }
 
                     return (new HttpRequest<CouchDBDocument>(
                       CouchUrls.document(
                         config,
-                        (<CouchDBDocument>document)._id
                       ), httpOptions)).fetch()
-                      .pipe(map((_d) => {
-                        (<CouchDBDocument>document)._rev = _d.rev;
-                        this.documents.snapshot(<CouchDBDocument>document);
-                        return (<CouchDBDocument>document);
-                      }))
-
-                  }
-
-                ),
+                  }),
 
                 mergeAll()
               )
               .subscribe((doc: CouchDBDocument) => {
+                this.documents.snapshot(doc);
                 observer.next(this.documents.doc(doc._id));
+                this.listenForLocalChanges(doc._id);
                 observer.complete();
               });
 
-          } else {
-            observer.next(this.documents.doc((<CouchDBDocument>document)));
-            observer.complete();
           }
-
-        } else {
-          this.config()
-            .pipe(
-              take(1),
-              map(
-                (config: WatcherConfig) => {
-                  let httpOptions: HttpRequestOptions = {
-                    method: (!this.documents.isPreDocument(document)) ? 'GET' : 'POST',
-                  }
-
-                  if (this.documents.isPreDocument(document)) {
-                    httpOptions.body = JSON.stringify(document);
-                  }
-
-                  return (new HttpRequest<CouchDBDocument>(
-                    CouchUrls.document(
-                      config,
-                      (!this.documents.isPreDocument(document)) ? (<CouchDBDocument>document)._id : undefined
-                    ), httpOptions)).fetch()
-                }),
-
-              mergeAll()
-            )
-            .subscribe((doc: CouchDBDocument) => {
-              const Document = this.documents.doc(doc._id);
-              if (this.appDocChanges[doc._id] === undefined) {
-                if (this.documents.changed(doc)) {
-                  this.documents.snapshot(doc);
-                }
-
-                this.appDocChanges[doc._id] = Document.subscribe((changedDoc) => {
-                  if (this.documents.changed(changedDoc)) {
-                    console.log("if we got here, there's more work to do", changedDoc);
-                  }
-
-                });
-
-              }
-
-              observer.next(Document);
-              observer.complete();
-            });
 
         }
 
-      }).pipe(mergeAll());
+      });
 
   }
 

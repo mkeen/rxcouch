@@ -3,3 +3,7 @@ export {
   CouchDBDocument,
   CouchDBPreDocument
 } from './types';
+export {
+  CouchDBAuthenticationStrategy,
+  CouchDBCookieAuthenticationStrategy
+} from './couchdbauthenticationstrategy';

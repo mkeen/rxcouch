@@ -25,7 +25,8 @@
   "author": "Mike Keen",
   "license": "ISC",
   "dependencies": {
-    "@mkeen/rxhttp": "1.6.0",
+    "@mkeen/behavior-child": "../behavior-child/",
+    "@mkeen/rxhttp": "../rxhttp/",
     "@types/lodash": "^4.1.4116",
     "js-sha256": "^0.9.0",
     "rxjs": "6.2.2"
