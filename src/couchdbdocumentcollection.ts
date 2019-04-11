@@ -44,26 +44,27 @@ export class CouchDBDocumentCollection {
       return this.documents[document];
     }
 
-    if (this.hasId(document._id)) {
+    if (this.isKnownDocument(document._id)) {
       if (this.changed(document)) {
         this.documents[document._id].next(document);
+        this.snapshot(document);
       }
 
       return this.documents[document._id];
     } else {
       this.add(document);
+      this.snapshot(document);
     }
 
-    this.snapshot(document);
     return this.documents[document._id];
   }
 
-  public hasId(document_id: string): boolean {
+  public isKnownDocument(document_id: string): boolean {
     return this.documents[document_id] !== undefined;
   }
 
-  public isDocument(item: any): item is CouchDBDocument {
-    return (<CouchDBDocument>item)._rev !== undefined;
+  public isValidCouchDBDocument(entity: any): boolean {
+    return '_id' in entity && '_rev' in entity;
   }
 
   public isPreDocument(item: any): item is CouchDBDocument {

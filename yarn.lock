@@ -2,13 +2,10 @@
 # yarn lockfile v1
 
 
-"@mkeen/behavior-child@../behavior-child/":
-  version "1.0.0"
-  dependencies:
-    rxjs "6.2.2"
-
-"@mkeen/rxhttp@../rxhttp/":
-  version "1.6.0"
+"@mkeen/rxhttp@1.6.1":
+  version "1.6.1"
+  resolved "https://registry.yarnpkg.com/@mkeen/rxhttp/-/rxhttp-1.6.1.tgz#227705c2e7854f994b66ccd6e05905624ff12210"
+  integrity sha512-BERthpBeQCchLwFydVvTI4YMJ19tgfF1ZrwqJ0ZLLLFUVRyYtFHQkFrMF5821prW9e8XRvpVqp88aI05arsPwQ==
   dependencies:
     abort-controller "^3.0.0"
     lodash.merge "^4.6.1"

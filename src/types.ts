@@ -5,6 +5,7 @@ export type WatcherConfig = [string[], string, string, number];
 
 export type CouchDBDocument = {
   _id: string;
+  _rev: string;
 } & {
   [prop: string]: any;
 }
@@ -47,6 +48,14 @@ export interface CouchDBChanges {
   seq?: string;
   last_seq?: string;
   doc: CouchDBDocument;
+}
+
+export interface CouchDBDocumentRevisionResponse {
+  id: string;
+  ok?: boolean;
+  error?: string;
+  reason?: string;
+  rev: string;
 }
 
 export interface CouchDBHeaders extends HttpRequestHeaders {
