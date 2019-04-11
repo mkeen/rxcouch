@@ -21,20 +21,13 @@ Powered by [rxhttp](https://www.npmjs.com/package/@mkeen/rxhttp)
 install: `yarn add @mkeen/rxcouch`
 
 ### Usage
-`CouchDB` is the class you will interact with most. Specifically, the `doc` function. An instance  
-of `CouchDB` provides the `doc` function, which accepts any document that conforms to `CouchDBDocument`,  
-`CouchDBPreDocument`, or a Document Id in the form of a `string`. This function will always return a  
-`BehaviorSubject` which contains the most up to date version of the resulting document in CouchDB.  
+`CouchDB` is the class you will interact with most. Specifically, the `doc` function. An instance of `CouchDB` provides the `doc` function, which accepts any document that conforms to `CouchDBDocument`, `CouchDBPreDocument`, or a Document Id in the form of a `string`. This function will always return a `BehaviorSubject` which contains the most up to date version of the resulting document in CouchDB.  
   
-All calls to `doc` will result the resulting Document Id being added to the `_changes` watcher. The watcher  
-will transparently update all returned `BehaviorSubject`s in real time when the documents they represent  
-are modified in the database. This is the main feature of RxCouch.  
+All calls to `doc` will result the resulting Document Id being added to the `_changes` watcher. The watcher will transparently update all returned `BehaviorSubject`s in real time when the documents they represent are modified in the database. This is the main feature of RxCouch.  
   
-Calling `.next` on the `BehaviorSubject` referenced above will result in any changes being immediately  
-written to the database.
+Calling `.next` on the `BehaviorSubject` referenced above will result in any changes being immediately written to the database.
 
-Complete documentation coming soon. The below examples should be sufficient to get started, and the code  
-is super readable if you need to dive in further.
+Complete documentation coming soon. The below examples should be sufficient to get started, and the code is super readable if you need to dive in further.
 
 ### Examples
 
