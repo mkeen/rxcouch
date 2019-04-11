@@ -28,7 +28,10 @@ of `CouchDB` provides the `doc` function, which accepts any document that confor
   
 All calls to `doc` will result the resulting Document Id being added to the `_changes` watcher. The watcher  
 will transparently update all returned `BehaviorSubject`s in real time when the documents they represent  
-are modified in the database. This is the main feature of RxCouch.
+are modified in the database. This is the main feature of RxCouch.  
+  
+Calling `.next` on the `BehaviorSubject` referenced above will result in any changes being immediately  
+written to the database.
 
 Complete documentation coming soon. The below examples should be sufficient to get started, and the code  
 is super readable if you need to dive in further.
