@@ -195,112 +195,97 @@ export class CouchDB {
     return Observable
       .create((observer: Observer<BehaviorSubject<CouchDBDocument>>): void => {
         if (typeof (document) === 'string') {
-          const documentId: string = document;
-          if (this.documents.isKnownDocument(documentId)) {
-            observer.next(this.documents.doc(documentId));
-            this.listenForLocalChanges(documentId);
-            observer.complete();
+          if (this.documents.isKnownDocument(document)) {
+            observer.next(this.documents.doc(document));
+            this.listenForLocalChanges(document);
           } else {
-            this.config()
-              .pipe(
-                take(1),
-                map(
-                  (config: WatcherConfig) => {
-                    let httpOptions: HttpRequestOptions = {
-                      method: 'GET',
-                    }
-
-                    return (new HttpRequest<CouchDBDocument>(
-                      CouchUrls.document(
-                        config,
-                      ), httpOptions)).fetch()
-                  }),
-
-                mergeAll()
-              )
-              .subscribe((doc: CouchDBDocument) => {
-                observer.next(this.documents.doc(doc));
-                this.listenForLocalChanges(doc._id);
-                observer.complete();
-              });
-
+            this.getDocument(document, observer)
           }
 
         } else {
           if (this.documents.isValidCouchDBDocument(document)) {
             if (this.documents.changed(<CouchDBDocument>document)) {
-              this.config()
-                .pipe(
-                  take(1),
-                  map(
-                    (config: WatcherConfig) => {
-                      let httpOptions: HttpRequestOptions = {
-                        method: 'PUT',
-                        body: JSON.stringify(document)
-                      }
-
-                      return (new HttpRequest<CouchDBDocumentRevisionResponse>(
-                        CouchUrls.document(
-                          config,
-                          document._id
-                        ), httpOptions)).fetch()
-                        .pipe(map((docRevResponse: CouchDBDocumentRevisionResponse) => {
-                          if (!docRevResponse.error) {
-                            document._rev = docRevResponse.rev;
-                            this.documents.doc(<CouchDBDocument>document);
-                            this.listenForLocalChanges(document._id);
-                          }
-
-                          return (<CouchDBDocument>document);
-                        }));
-
-                    }
-
-                  ),
-
-                  mergeAll()
-                )
-                .subscribe((doc: CouchDBDocument) => {
-                  observer.next(this.documents.doc(doc));
-                  observer.complete();
-                });
-
+              this.saveDocument(document, observer);
             } else {
               observer.next(this.documents.doc(document._id));
-              observer.complete();
             }
 
           } else {
-            this.config()
-              .pipe(
-                take(1),
-                map(
-                  (config: WatcherConfig) => {
-                    let httpOptions: HttpRequestOptions = {
-                      method: 'PUT',
-                      body: JSON.stringify(document)
-                    }
-
-                    return (new HttpRequest<CouchDBDocumentRevisionResponse>(
-                      CouchUrls.document(
-                        config,
-                      ), httpOptions)).fetch()
-                  }),
-
-                mergeAll()
-              )
-              .subscribe((docRevisionResponse: CouchDBDocumentRevisionResponse): void => {
-                document._id = docRevisionResponse.id;
-                document._rev = docRevisionResponse.rev;
-                observer.next(this.documents.doc(<CouchDBDocument>document));
-                this.listenForLocalChanges(document._id);
-                observer.complete();
-              });
-
+            this.saveDocument(document, observer);
           }
 
         }
 
+        observer.complete();
+      });
+
+  }
+
+  private getDocument(
+    documentId: string,
+    observer: Observer<BehaviorSubject<CouchDBDocument>>
+  ): void {
+    this.config()
+      .pipe(
+        take(1),
+        map(
+          (config: WatcherConfig) => {
+            let httpOptions: HttpRequestOptions = {
+              method: 'GET',
+            }
+
+            return (new HttpRequest<CouchDBDocument>(
+              CouchUrls.document(
+                config,
+                documentId,
+              ), httpOptions)).fetch()
+          }),
+
+        mergeAll()
+      )
+      .subscribe((doc: CouchDBDocument) => {
+        observer.next(this.documents.doc(doc));
+        this.listenForLocalChanges(doc._id);
+        observer.complete();
+      });
+
+  }
+
+  private saveDocument(
+    document: CouchDBDocument | CouchDBPreDocument,
+    observer: Observer<BehaviorSubject<CouchDBDocument>>
+  ): void {
+    this.config()
+      .pipe(
+        take(1),
+        map(
+          (config: WatcherConfig) => {
+            let httpOptions: HttpRequestOptions = {
+              method: 'PUT',
+              body: JSON.stringify(document)
+            }
+
+            return (new HttpRequest<CouchDBDocumentRevisionResponse>(
+              CouchUrls.document(
+                config,
+                !this.documents.isPreDocument(document) ? document._id : undefined
+              ), httpOptions)).fetch()
+          }),
+
+        mergeAll()
+      )
+      .subscribe((docRevResponse: CouchDBDocumentRevisionResponse): void => {
+        if (!docRevResponse.error) {
+          if (this.documents.isPreDocument(document)) {
+            document._id = docRevResponse.id;
+          }
+
+          document._rev = docRevResponse.rev;
+          observer.next(this.documents.doc(<CouchDBDocument>document));
+          this.listenForLocalChanges(document._id);
+        }
+
+        observer.complete();
       });
 
   }

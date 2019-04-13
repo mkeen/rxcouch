@@ -67,8 +67,8 @@ export class CouchDBDocumentCollection {
     return '_id' in entity && '_rev' in entity;
   }
 
-  public isPreDocument(item: any): item is CouchDBDocument {
-    return (<CouchDBDocument>item)._id === undefined;
+  public isPreDocument(item: any): boolean {
+    return !this.isValidCouchDBDocument(item);
   }
 
   public add(document: CouchDBDocument): void {
