@@ -1,9 +1,6 @@
 export { CouchDB } from './couchdb';
 export {
   CouchDBDocument,
-  CouchDBPreDocument
+  CouchDBPreDocument,
+  AuthorizationBehavior
 } from './types';
-export {
-  CouchDBAuthenticationStrategy,
-  CouchDBCookieAuthenticationStrategy
-} from './couchdbauthenticationstrategy';

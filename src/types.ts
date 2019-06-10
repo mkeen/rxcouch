@@ -1,7 +1,7 @@
 import { BehaviorSubject, Subscription } from 'rxjs';
 import { HttpRequestHeaders } from '@mkeen/rxhttp';
 
-export type WatcherConfig = [string[], string, string, number];
+export type WatcherConfig = [string[], string, string, number, boolean, string];
 
 export type CouchDBDocument = {
   _id: string;
@@ -40,6 +40,8 @@ export interface RxCouchConfig {
   host?: string;
   dbName: string;
   port?: number;
+  ssl?: boolean;
+  cookie?: string;
 }
 
 export interface CouchDBChanges {
@@ -56,6 +58,11 @@ export interface CouchDBDocumentRevisionResponse {
   error?: string;
   reason?: string;
   rev: string;
+}
+
+export interface CouchDBError {
+  error: string;
+  reason: string;
 }
 
 export interface CouchDBHeaders extends HttpRequestHeaders {
@@ -96,5 +103,10 @@ export interface CouchDBDesignViewOptions {
 export interface CouchDBAuthenticationResponse {
   ok: boolean;
   name: string;
-  roles: string[]
+  roles: string[];
+}
+
+export enum AuthorizationBehavior {
+  cookie = 'cookie',
+  open = 'open'
 }
