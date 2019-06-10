@@ -15,6 +15,8 @@ CouchDB is a fantastic database for powering real-time user interfaces, but to t
 📝 **Automatic Document Editing** -- If you pass in a complete document that doesn't match a previously received version, the new version will be sent to couchdb and saved. Any other subscribers will be notified of the change once couchdb has successfully saved it.
 
 🔐 **Authentication** -- Currently supports open CouchDB databases as well as protected databases. Uses cookie-based auth, which is the secure, and recommended method.
+
+📀 **Universal** Works on both NodeJS and Browser
   
 Powered by [rxhttp](https://www.npmjs.com/package/@mkeen/rxhttp)  
 
