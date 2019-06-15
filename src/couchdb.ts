@@ -118,16 +118,15 @@ export class CouchDB {
   public authenticate(): Observable<any> {
     if (this.auth === AuthorizationBehavior.cookie) {
       if (this.username && this.password) {
-        console.log("in here!");
         return this._authenticate(this.username, this.password)
           .pipe(
             tap((authResponse: any) => {
-              const cookie = authResponse[1].get('set-cookie');
+              const cookie = authResponse.headers.get('set-cookie');
               if (cookie) {
                 this.cookie.next(cookie.split(';')[0].trim());
               }
 
-              this.authenticated.next(authResponse[0].error === undefined);
+              this.authenticated.next(authResponse.response.error === undefined);
             }));
 
       } else {
@@ -199,26 +198,25 @@ export class CouchDB {
 
   }
 
-  public design(
+  public design<T>(
     designName: string,
     designType: CouchDBDesignView | CouchDBDesignList,
     designTypeName: string,
     options?: CouchDBDesignViewOptions
-  ): Observable<any> {
+  ): Observable<T> {
     return this.config()
       .pipe(take(1),
         map((config: WatcherConfig) => {
-          let requestConfig: HttpRequestOptions = {};
-
-          return (new HttpRequest<any>(
+          return this.httpRequest<T>(
+            config,
             CouchUrls.design(
               config,
               designName,
               designTypeName,
               designType,
               options
-            ), requestConfig
-          )).fetch();
+            ),
+          );
 
         }),
 
@@ -264,28 +262,21 @@ export class CouchDB {
         take(1),
         map(
           (config: WatcherConfig) => {
-            let httpOptions: HttpRequestOptions = {
-              method: 'GET',
-            }
-
-            if (config[COOKIE].length > 0) {
-              httpOptions['headers'] = {
-                'Cookie': config[COOKIE]
-              }
-
-            }
-
-            return (new HttpRequest<CouchDBDocument | CouchDBError>(
+            return this.httpRequest<CouchDBDocumentRevisionResponse>(
+              config,
               CouchUrls.document(
                 config,
                 documentId,
-              ), httpOptions)).fetch()
+              ),
+
+              'GET'
+            );
+
           }),
 
         mergeAll()
       )
       .subscribe((doc: any) => {
-        console.log("dddd", doc);
         if (this.documents.isValidCouchDBDocument(doc)) {
           observer.next(this.documents.doc(doc));
           this.listenForLocalChanges(doc._id);
@@ -307,23 +298,15 @@ export class CouchDB {
         take(1),
         map(
           (config: WatcherConfig) => {
-            let httpOptions: HttpRequestOptions = {
-              method: this.documents.isPreDocument(document) ? 'POST' : 'PUT',
-              body: JSON.stringify(document)
-            }
-
-            if (config[COOKIE].length > 0) {
-              httpOptions['headers'] = {
-                'Cookie': config[COOKIE]
-              }
-
-            }
-
-            return (new HttpRequest<CouchDBDocumentRevisionResponse>(
+            return this.httpRequest<CouchDBDocumentRevisionResponse>(
+              config,
               CouchUrls.document(
                 config,
                 !this.documents.isPreDocument(document) ? document._id : undefined
-              ), httpOptions)).fetch();
+              ),
+              this.documents.isPreDocument(document) ? 'POST' : 'PUT',
+              JSON.stringify(document)
+            );
 
           }),
 
@@ -343,6 +326,31 @@ export class CouchDB {
         observer.complete();
       });
 
+  }
+
+  private httpRequest<T>(
+    config: WatcherConfig,
+    url: string,
+    method: string = 'GET',
+    body: any = undefined
+  ) {
+    let httpOptions: HttpRequestOptions = {
+      method
+    }
+
+    if (body) {
+      httpOptions.body = body;
+    }
+
+    if (config[COOKIE].length > 0 && process !== undefined) {
+      httpOptions['headers'] = {
+        'Cookie': config[COOKIE]
+      }
+
+    }
+
+    return new HttpRequest<T>(url, httpOptions)
+      .fetch();
   }
 
   private stopListeningForLocalChanges(doc_id: string): void {
