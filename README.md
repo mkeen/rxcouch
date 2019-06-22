@@ -31,7 +31,7 @@ Passing a modified version of the document  `.next` on any `BehaviorSubject` ret
 
 ### TypeScript Example
 
-```
+```typescript
 import { CouchDB,                                               // Base class you'll interact with
          AuthorizationBehavior,                                 // Toggle open vs cookie login
          CouchDBCredentials                                     // Credentials (only required for cookie)
