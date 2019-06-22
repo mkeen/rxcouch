@@ -23,7 +23,7 @@ Powered by [rxhttp](https://www.npmjs.com/package/@mkeen/rxhttp)
 `npm install @mkeen/rxcouch`
 
 ### Usage
-`CouchDB` is the class you will interact with most. An instance of `CouchDB` provides the `doc` function, which accepts any document that conforms to `CouchDBDocument`, `CouchDBPreDocument` (a way of expressing a document that isn't persisted yet), or a Document `_id` in the form of a `string`, and returns a `BehaviorSubject`.
+`CouchDB` is the class you will interact with most. An instance of `CouchDB` provides the `doc` method, which accepts as an argument any document that conforms to `CouchDBDocument` or `CouchDBPreDocument` (a way of expressing a document that isn't persisted yet), or a Document `_id` -- in the form of a `string`. A call to `.doc` returns a `BehaviorSubject`.
   
 All calls to `doc` will result in the resulting doc `_id` being added to the `_changes` watcher's  `_doc_ids` filter. All `doc` `BehaviorSubject`s will be kept up to date in real time as the documents they represent are modified in the database.
   
