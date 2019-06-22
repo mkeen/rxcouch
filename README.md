@@ -30,7 +30,7 @@ All calls to `doc` will result in the resulting doc `_id` being added to the `_c
   
 Passing a modified version of the document  `.next` on any `BehaviorSubject` returned from `doc` will result in any changes being immediately written to the database.
 
-### TypeScript Example
+### Example
 
 ```typescript
 import { CouchDB,                                               // Base class you'll interact with
