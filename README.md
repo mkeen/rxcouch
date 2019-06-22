@@ -13,10 +13,10 @@ CouchDB is a fantastic database for powering real-time user interfaces, but to t
 📡 **Automatic Change Notification** -- RxCouch keeps track of all documents that the user touches. RxCouch is always subscribed to CouchDB's `_changes` feed and utilizes the `_doc_ids` filter to ensure you only get the changes to documents you've fetched or created in the current scope of your user interface. A document is a `BehaviorSubject`. RxCouch is real-time by default.
    
 💾 **Automatic Document Creation** -- If you pass in a document, without an `_id` field, RxCouch will automatically create it in the database and return a `BehaviorSubject`.  
+   
+📝 **Automatic Document Editing** -- If you pass in a complete document that doesn't match a previously received version of a known document (one that the current scope of your user interface has fetched or created), the new version will be sent to couchdb and saved. If other users of your application and are watching this document, they will receive the new version of the document in real-time.  
 
 😎 **Automatic Document Fetching** -- If you subscribe to a document `_id` that RxCouch hasn't seen yet, it will be automatically and transparently fetched, before being injected into a `BehaviorSubject` and returned.
-   
-📝 **Automatic Document Editing** -- If you pass in a complete document that doesn't match a previously received version of a known document (one that the current scope of your user interface has fetched or created), the new version will be sent to couchdb and saved. If other users of your application and are watching this document, they will receive the new version of the document in real-time.
   
 ### Install
 `npm install @mkeen/rxcouch`  
