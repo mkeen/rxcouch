@@ -7,7 +7,6 @@ CouchDB is a fantastic database for powering real-time user interfaces, but to t
 ### Features
 
 📀 **Universal** Works on both NodeJS and Browser  
-Powered by [rxhttp](https://www.npmjs.com/package/@mkeen/rxhttp)  
 
 🔐 **Authentication** -- Supports wide open CouchDB databases (admin party) as well as protected databases. Uses cookie-based auth, which is the secure, and recommended method in both Browser and Node.
 
