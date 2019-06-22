@@ -2,5 +2,6 @@ export { CouchDB } from './couchdb';
 export {
   CouchDBDocument,
   CouchDBPreDocument,
-  AuthorizationBehavior
+  AuthorizationBehavior,
+  CouchDBCredentials
 } from './types';

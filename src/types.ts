@@ -110,3 +110,8 @@ export enum AuthorizationBehavior {
   cookie = 'cookie',
   open = 'open'
 }
+
+export interface CouchDBCredentials {
+  username: string;
+  password: string;
+}
