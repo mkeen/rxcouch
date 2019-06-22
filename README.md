@@ -6,6 +6,9 @@ CouchDB is a fantastic database for powering real-time user interfaces, but to t
 
 ### Features
 
+📀 **Universal** Works on both NodeJS and Browser  
+Powered by [rxhttp](https://www.npmjs.com/package/@mkeen/rxhttp)  
+
 📡 **Automatic Change Notification** -- RxCouch keeps track of all documents that the user touches. RxCouch is always subscribed to CouchDB's `_changes` feed and utilizes the `_doc_ids` filter to ensure you only get the changes to documents you've fetched or created in the current scope of your user interface. A document is a `BehaviorSubject`. RxCouch is real-time by default.
    
 😎 **Automatic Document Fetching** -- If you subscribe to a document `_id` that RxCouch hasn't seen yet, it will be automatically and transparently fetched, before being injected into a `BehaviorSubject` and returned.
@@ -14,20 +17,17 @@ CouchDB is a fantastic database for powering real-time user interfaces, but to t
    
 📝 **Automatic Document Editing** -- If you pass in a complete document that doesn't match a previously received version of a known document (one that the current scope of your user interface has fetched or created), the new version will be sent to couchdb and saved. If other users of your application and are watching this document, they will receive the new version of the document in real-time.
 
-🔐 **Authentication** -- Currently supports wide open CouchDB databases (admin party) as well as protected databases. Uses cookie-based auth, which is the secure, and recommended method in both Browser and Node.
-
-📀 **Universal** Works on both NodeJS and Browser
+🔐 **Authentication** -- Supports wide open CouchDB databases (admin party) as well as protected databases. Uses cookie-based auth, which is the secure, and recommended method in both Browser and Node.
   
-Powered by [rxhttp](https://www.npmjs.com/package/@mkeen/rxhttp)  
-
-install: `yarn add @mkeen/rxcouch`
+### Install
+`npm install @mkeen/rxcouch`
 
 ### Usage
-`CouchDB` is the class you will interact with most. Specifically, the `doc` function. An instance of `CouchDB` provides the `doc` function, which accepts any document that conforms to `CouchDBDocument`, `CouchDBPreDocument`, or a Document Id in the form of a `string`. This function will always return a `BehaviorSubject` which contains the most up to date version of the resulting document in CouchDB.  
+`CouchDB` is the class you will interact with most. An instance of `CouchDB` provides the `doc` function, which accepts any document that conforms to `CouchDBDocument`, `CouchDBPreDocument` (a way of expressing a document that isn't persisted yet), or a Document `_id` in the form of a `string`, and returns a `BehaviorSubject`.
   
-All calls to `doc` will result the resulting Document Id being added to the `_changes` watcher. The watcher will transparently update all returned `BehaviorSubject`s in real time when the documents they represent are modified in the database. This is the main feature of RxCouch.  
+All calls to `doc` will result the resulting Document Id being added to the `_changes` watcher's  `_doc_ids` filter. All `doc` `BehaviorSubject`s will be kept up to date in real time as the documents they represent are modified in the database.
   
-Calling `.next` on the `BehaviorSubject` referenced above will result in any changes being immediately written to the database.
+Passing a modified version of the document  `.next` on any `BehaviorSubject` returned from `doc` will result in any changes being immediately written to the database.
 
 ### TypeScript Example
 
