@@ -20,7 +20,8 @@ Powered by [rxhttp](https://www.npmjs.com/package/@mkeen/rxhttp)
 📝 **Automatic Document Editing** -- If you pass in a complete document that doesn't match a previously received version of a known document (one that the current scope of your user interface has fetched or created), the new version will be sent to couchdb and saved. If other users of your application and are watching this document, they will receive the new version of the document in real-time.
   
 ### Install
-`npm install @mkeen/rxcouch`
+`npm install @mkeen/rxcouch`  
+https://www.npmjs.com/package/@mkeen/rxcouch
 
 ### Usage
 `CouchDB` is the class you will interact with most. An instance of `CouchDB` provides the `doc` method, which accepts as an argument any document that conforms to `CouchDBDocument` or `CouchDBPreDocument` (a way of expressing a document that isn't persisted yet), or a Document `_id` -- in the form of a `string`. A call to `.doc` returns a `BehaviorSubject`.
