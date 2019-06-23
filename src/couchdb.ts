@@ -29,7 +29,9 @@ import {
   CouchDBAuthenticationResponse,
   CouchDBError,
   AuthorizationBehavior,
-  CouchDBCredentials
+  CouchDBCredentials,
+  CouchDBFindQuery,
+  CouchDBFindResponse
 } from './types';
 
 import {
@@ -229,6 +231,35 @@ export class CouchDB {
 
       }).pipe(mergeAll());
 
+  }
+
+  public find(query: CouchDBFindQuery): Observable<CouchDBDocument[]> {
+    return Observable
+      .create((observer: Observer<CouchDBDocument[]>): void => {
+        this.config()
+          .pipe(
+            take(1),
+            map(
+              (config: WatcherConfig) => {
+                return this.httpRequestWithAuthRetry<CouchDBFindResponse>(
+                  config,
+                  CouchUrls.find(config),
+                  FetchBehavior.simple,
+                  'POST',
+                  JSON.stringify(query)
+                );
+
+              }),
+
+            mergeAll(), take(1), map((findResponse: CouchDBFindResponse) => {
+              return findResponse.docs.map((document: CouchDBDocument) => {
+                return document;
+              })
+            })).subscribe((documents: CouchDBDocument[]) => {
+              observer.next(documents);
+            });
+
+      });
   }
 
   private getDocument(

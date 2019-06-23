@@ -15,16 +15,28 @@ export type CouchDBPreDocument = {
   [prop: string]: any;
 }
 
-export type CouchDBDocumentIndex = {} & {
+export type CouchDBDocumentIndex = {
+} & {
   [prop: string]: BehaviorSubject<CouchDBDocument>;
 }
 
-export type CouchDBHashIndex = {} & {
+export type CouchDBHashIndex = {
+} & {
   [prop: string]: String;
 }
 
-export type CouchDBAppChangesSubscriptions = {} & {
+export type CouchDBAppChangesSubscriptions = {
+} & {
   [prop: string]: Subscription;
+}
+
+export type CouchDBFindSelector = {
+} & {
+  [prop: string]: any;
+}
+
+export type CouchDBFindSort = {
+  [prop: string]: string;
 }
 
 export type CouchDBDesignView = 'view';
@@ -114,4 +126,26 @@ export enum AuthorizationBehavior {
 export interface CouchDBCredentials {
   username: string;
   password: string;
+}
+
+export interface CouchDBFindQuery {
+  selector?: CouchDBFindSelector;
+  limit?: number;
+  skip?: number;
+  sort?: CouchDBFindSort[];
+  fields?: string[];
+  use_index?: string | [];
+  r?: number;
+  bookmark?: string;
+  update?: boolean;
+  stable?: boolean;
+  stale?: string;
+  execution_stats?: boolean;
+}
+
+export interface CouchDBFindResponse {
+  docs: CouchDBDocument[];
+  warning: string;
+  execution_states: object;
+  bookmark: string;
 }

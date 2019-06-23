@@ -54,4 +54,8 @@ export namespace CouchUrls {
     return `${prefix(config)}/_session`;
   }
 
+  export function find(config: WatcherConfig) {
+    return `${prefix(config)}/${config[DATABASE_NAME]}/_find`;
+  }
+
 }
