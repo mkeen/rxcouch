@@ -330,7 +330,7 @@ export class CouchDB {
               }
 
               document._rev = docRevResponse.rev;
-              this.documents.doc(<CouchDBDocument>document);
+              observer.next(this.documents.doc(<CouchDBDocument>document));
 
               this.listenForLocalChanges(document._id);
             }
