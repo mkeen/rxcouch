@@ -73,6 +73,7 @@ export class CouchDB {
     this.configWatcher = this.config()
       .pipe(distinctUntilChanged())
       .pipe(filter((config: WatcherConfig) => {
+        console.log("ids changed");
         const idsEmpty = config[IDS].length === 0;
         if (idsEmpty) {
           this.changeFeedAbort.next(true);
@@ -119,6 +120,7 @@ export class CouchDB {
     if (this.changeFeedHttpRequest) {
       this.changeFeedHttpRequest.reconfigure(requestUrl, this.httpRequestOptions(config, 'POST', ids), FetchBehavior.stream);
     } else {
+      console.log("here comes change d");
       this.changeFeedHttpRequest = this.httpRequest<CouchDBChanges>(
         config,
         requestUrl,
@@ -322,7 +324,7 @@ export class CouchDB {
 
           }),
 
-        mergeAll(), take(1)).subscribe(
+        mergeAll()).subscribe(
           (docRevResponse: CouchDBDocumentRevisionResponse): void => {
             if (!docRevResponse.error) {
               if (this.documents.isPreDocument(document)) {
@@ -409,6 +411,8 @@ export class CouchDB {
 
                   });
 
+              } else {
+                observer.error(errorCode);
               }
 
             },
@@ -465,10 +469,9 @@ export class CouchDB {
   }
 
   private listenForLocalChanges(doc_id: string): void {
-
     if (this.appDocChanges[doc_id] === undefined) {
       this.appDocChanges[doc_id] = this.documents.doc(doc_id)
-        //.pipe(skip(1))
+        .pipe(skip(1))
         .subscribe((changedDoc: any) => {
           if (this.documents.changed(changedDoc)) {
             this.stopListeningForLocalChanges(changedDoc._id);
