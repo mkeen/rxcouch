@@ -1,5 +1,5 @@
 import { Observer, Observable, Subject, BehaviorSubject, combineLatest, of } from 'rxjs';
-import { distinctUntilChanged, take, map, filter, mergeAll, tap, skip, takeUntil } from 'rxjs/operators';
+import { distinctUntilChanged, take, map, filter, mergeAll, tap, skip, takeUntil, debounceTime } from 'rxjs/operators';
 
 import {
   FetchBehavior,
@@ -40,7 +40,8 @@ import {
   HOST,
   PORT,
   SSL,
-  COOKIE
+  COOKIE,
+  TRACK_CHANGES
 } from './enums';
 
 import { CouchDBDocumentCollection } from './couchdbdocumentcollection';
@@ -54,6 +55,7 @@ export class CouchDB {
   private port: BehaviorSubject<number>;
   private ssl: BehaviorSubject<boolean>;
   private cookie: BehaviorSubject<string>;
+  private trackChanges: BehaviorSubject<boolean>;
   private configWatcher: any;
   private appDocChanges: CouchDBAppChangesSubscriptions = {};
   private changeFeedHttpRequest: HttpRequest<CouchDBChanges> | null = null;
@@ -69,20 +71,21 @@ export class CouchDB {
     this.host = new BehaviorSubject<string>(rxCouchConfig.host || '127.0.0.1');
     this.ssl = new BehaviorSubject<boolean>(rxCouchConfig.ssl || false);
     this.cookie = new BehaviorSubject<string>(rxCouchConfig.cookie || '');
+    this.trackChanges = new BehaviorSubject<boolean>(rxCouchConfig.trackChanges || true);
 
     this.configWatcher = this.config()
-      .pipe(distinctUntilChanged())
-      .pipe(filter((config: WatcherConfig) => {
-        console.log("ids changed");
-        const idsEmpty = config[IDS].length === 0;
-        if (idsEmpty) {
-          this.changeFeedAbort.next(true);
-        }
+      .pipe(distinctUntilChanged(),
+        filter((config: WatcherConfig) => {
+          const idsEmpty = config[IDS].length === 0;
+          if (idsEmpty || config[TRACK_CHANGES] === false) {
+            this.changeFeedAbort.next(true);
+          }
 
-        return !idsEmpty;
-      })).subscribe((config: WatcherConfig) => {
-        this.configureChangeFeed(config);
-      });
+          return !idsEmpty;
+        }),
+        debounceTime(0)).subscribe((config: WatcherConfig) => {
+          this.configureChangeFeed(config);
+        });
 
   }
 
@@ -120,7 +123,6 @@ export class CouchDB {
     if (this.changeFeedHttpRequest) {
       this.changeFeedHttpRequest.reconfigure(requestUrl, this.httpRequestOptions(config, 'POST', ids), FetchBehavior.stream);
     } else {
-      console.log("here comes change d");
       this.changeFeedHttpRequest = this.httpRequest<CouchDBChanges>(
         config,
         requestUrl,
@@ -174,7 +176,8 @@ export class CouchDB {
       this.host,
       this.port,
       this.ssl,
-      this.cookie
+      this.cookie,
+      this.trackChanges
     );
 
   }
@@ -205,7 +208,7 @@ export class CouchDB {
         take(1));
   }
 
-  public doc(document: CouchDBDocument | CouchDBPreDocument | string): BehaviorSubject<CouchDBDocument> {
+  public doc(document: CouchDBDocument | CouchDBPreDocument | string, trackChanges: boolean = true): BehaviorSubject<CouchDBDocument> {
     return Observable
       .create((observer: Observer<BehaviorSubject<CouchDBDocument>>): void => {
         if (typeof (document) === 'string') {
@@ -473,6 +476,11 @@ export class CouchDB {
       this.appDocChanges[doc_id] = this.documents.doc(doc_id)
         .pipe(skip(1))
         .subscribe((changedDoc: any) => {
+          if (doc_id !== changedDoc._id) {
+            console.warn('document mismatch. change ignored.');
+            return;
+          }
+
           if (this.documents.changed(changedDoc)) {
             this.stopListeningForLocalChanges(changedDoc._id);
             this.doc(changedDoc).subscribe((e: any) => { });
