@@ -78,10 +78,14 @@ export class CouchDB {
         filter((config: WatcherConfig) => {
           const idsEmpty = config[IDS].length === 0;
           if (idsEmpty || config[TRACK_CHANGES] === false) {
+            if (this.changeFeedHttpRequest) {
+              this.changeFeedHttpRequest.cancel();
+            }
+
             this.changeFeedAbort.next(true);
           }
 
-          return !idsEmpty;
+          return !(idsEmpty || !config[TRACK_CHANGES]);
         }),
         debounceTime(0)).subscribe((config: WatcherConfig) => {
           this.configureChangeFeed(config);
