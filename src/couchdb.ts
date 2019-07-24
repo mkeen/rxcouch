@@ -64,7 +64,7 @@ export class CouchDB {
   constructor(
     rxCouchConfig: RxCouchConfig,
     public auth: AuthorizationBehavior = AuthorizationBehavior.open,
-    public credentials: Observable<CouchDBCredentials>
+    public credentials: Observable<CouchDBCredentials> | null = null
   ) {
     this.databaseName = new BehaviorSubject<string>(rxCouchConfig.dbName);
     this.port = new BehaviorSubject<number>(rxCouchConfig.port || 5984);
@@ -95,7 +95,7 @@ export class CouchDB {
 
   public authenticate(): Observable<HttpResponseWithHeaders<CouchDBAuthenticationResponse>> {
     if (this.auth === AuthorizationBehavior.cookie) {
-      return this.credentials
+      return (<Observable<CouchDBCredentials>>this.credentials)
         .pipe(map((credentials: CouchDBCredentials) => {
           return this.attemptNewAuthentication(credentials.username, credentials.password)
             .pipe(
