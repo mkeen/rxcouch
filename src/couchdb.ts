@@ -5,7 +5,6 @@ import {
   FetchBehavior,
   HttpRequest,
   HttpRequestOptions,
-  HttpRequestHeaders,
   HttpResponseWithHeaders
 } from '@mkeen/rxhttp';
 
@@ -13,10 +12,7 @@ import { CouchUrls } from './couchurls';
 
 import {
   RxCouchConfig,
-  CouchDBAuthentication,
   CouchDBChanges,
-  CouchDBChange,
-  CouchDBDesignViewResponse,
   CouchDBDocumentRevisionResponse,
   CouchDBDocument,
   CouchDBDesignViewOptions,
@@ -25,9 +21,7 @@ import {
   WatcherConfig,
   CouchDBPreDocument,
   CouchDBAppChangesSubscriptions,
-  CouchDBHeaders,
   CouchDBAuthenticationResponse,
-  CouchDBError,
   AuthorizationBehavior,
   CouchDBCredentials,
   CouchDBFindQuery,
@@ -36,16 +30,11 @@ import {
 
 import {
   IDS,
-  DATABASE_NAME,
-  HOST,
-  PORT,
-  SSL,
   COOKIE,
   TRACK_CHANGES
 } from './enums';
 
 import { CouchDBDocumentCollection } from './couchdbdocumentcollection';
-import { request } from 'http';
 
 export class CouchDB {
   public documents: CouchDBDocumentCollection = new CouchDBDocumentCollection();
