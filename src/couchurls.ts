@@ -50,12 +50,16 @@ export namespace CouchUrls {
     return `${prefix(config)}/${config[DATABASE_NAME]}/_changes?include_docs=true&feed=continuous&filter=_doc_ids&since=now`;
   }
 
-  export function authenticate(config: WatcherConfig) {
+  export function authenticate(config: WatcherConfig): string {
     return `${prefix(config)}/_session`;
   }
 
-  export function find(config: WatcherConfig) {
+  export function find(config: WatcherConfig): string {
     return `${prefix(config)}/${config[DATABASE_NAME]}/_find`;
+  }
+
+  export function createUser(config: WatcherConfig, username: string): string {
+    return `${prefix(config)}/_users/org.couchdb.user:${username}`;
   }
 
 }

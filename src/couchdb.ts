@@ -260,6 +260,39 @@ export class CouchDB {
       });
   }
 
+  public createUser(username: string, password: string, roles: string[] = [], customFields: object = {}) {
+    return Observable
+      .create((observer: Observer<CouchDBDocumentRevisionResponse>): void => {
+        this.config()
+          .pipe(
+            take(1),
+            map(
+              (config: WatcherConfig) => {
+                return this.httpRequestWithAuthRetry<CouchDBDocumentRevisionResponse>(
+                  config,
+                  CouchUrls.createUser(config, username),
+                  FetchBehavior.simple,
+                  'PUT',
+                  JSON.stringify(Object.assign({ name: username, password, roles, type: "user" }, customFields))
+                );
+
+              }),
+
+            mergeAll()
+          )
+          .subscribe((docRev) => {
+            if (docRev.ok) {
+              observer.next(docRev);
+            } else {
+              observer.error(docRev);
+            }
+
+          });
+
+      });
+
+  }
+
   private getDocument(
     documentId: string,
     observer: Observer<BehaviorSubject<CouchDBDocument>>
