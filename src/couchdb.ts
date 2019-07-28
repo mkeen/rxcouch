@@ -269,6 +269,10 @@ export class CouchDB {
             this.httpRequest<CouchDBSession>(config, CouchUrls.session(config))
               .fetch()
               .subscribe((response: CouchDBSession) => {
+                if (response.ok) {
+                  this.authenticated.next(true);
+                }
+
                 observer.next(response);
               });
 
