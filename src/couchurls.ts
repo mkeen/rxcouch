@@ -58,8 +58,8 @@ export namespace CouchUrls {
     return `${prefix(config)}/${config[DATABASE_NAME]}/_find`;
   }
 
-  export function createUser(config: WatcherConfig, username: string): string {
-    return `${prefix(config)}/_users/org.couchdb.user:${username}`;
+  export function user(config: WatcherConfig, username: string, namespace: string = "org.couchdb.user:"): string {
+    return `${prefix(config)}/_users/${namespace}${username}`;
   }
 
 }

@@ -38,14 +38,13 @@ import { CouchDBDocumentCollection } from './couchdbdocumentcollection';
 
 export class CouchDB {
   public documents: CouchDBDocumentCollection = new CouchDBDocumentCollection();
-  public authenticated: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(true);
+  public authenticated: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
   private databaseName: BehaviorSubject<string>;
   private host: BehaviorSubject<string>;
   private port: BehaviorSubject<number>;
   private ssl: BehaviorSubject<boolean>;
   private cookie: BehaviorSubject<string>;
   private trackChanges: BehaviorSubject<boolean>;
-  private configWatcher: any;
   private appDocChanges: CouchDBAppChangesSubscriptions = {};
   private changeFeedHttpRequest: HttpRequest<CouchDBChanges> | null = null;
   private changeFeedAbort: Subject<boolean> = new Subject();
@@ -62,7 +61,7 @@ export class CouchDB {
     this.cookie = new BehaviorSubject<string>(rxCouchConfig.cookie || '');
     this.trackChanges = new BehaviorSubject<boolean>(rxCouchConfig.trackChanges || true);
 
-    this.configWatcher = this.config()
+    this.config()
       .pipe(distinctUntilChanged(),
         filter((config: WatcherConfig) => {
           const idsEmpty = config[IDS].length === 0;
@@ -201,7 +200,7 @@ export class CouchDB {
         take(1));
   }
 
-  public doc(document: CouchDBDocument | CouchDBPreDocument | string, trackChanges: boolean = true): BehaviorSubject<CouchDBDocument> {
+  public doc(document: CouchDBDocument | CouchDBPreDocument | string): BehaviorSubject<CouchDBDocument> {
     return Observable
       .create((observer: Observer<BehaviorSubject<CouchDBDocument>>): void => {
         if (typeof (document) === 'string') {
@@ -258,39 +257,6 @@ export class CouchDB {
             });
 
       });
-  }
-
-  public createUser(username: string, password: string, roles: string[] = [], customFields: object = {}) {
-    return Observable
-      .create((observer: Observer<CouchDBDocumentRevisionResponse>): void => {
-        this.config()
-          .pipe(
-            take(1),
-            map(
-              (config: WatcherConfig) => {
-                return this.httpRequestWithAuthRetry<CouchDBDocumentRevisionResponse>(
-                  config,
-                  CouchUrls.createUser(config, username),
-                  FetchBehavior.simple,
-                  'PUT',
-                  JSON.stringify(Object.assign({ name: username, password, roles, type: "user" }, customFields))
-                );
-
-              }),
-
-            mergeAll()
-          )
-          .subscribe((docRev) => {
-            if (docRev.ok) {
-              observer.next(docRev);
-            } else {
-              observer.error(docRev);
-            }
-
-          });
-
-      });
-
   }
 
   private getDocument(
@@ -417,25 +383,30 @@ export class CouchDB {
             },
 
             (errorCode: number) => {
-              if (errorCode === 401) {
+              if (errorCode === 401 || errorCode === 403) {
                 this.authenticated.next(false);
                 this.authenticate()
                   .subscribe((authResponse: HttpResponseWithHeaders<CouchDBAuthenticationResponse>) => {
                     // Need to handle failure here somehow
                     if (authResponse.response.ok) {
-                      observer.next(
-                        this.httpRequestWithAuthRetry<T>(
-                          config,
-                          url,
-                          behavior,
-                          method,
-                          body
-                        )
+                      this.config()
+                        .pipe(take(1))
+                        .subscribe((config: WatcherConfig) => {
+                          observer.next(
+                            this.httpRequestWithAuthRetry<T>(
+                              config,
+                              url,
+                              behavior,
+                              method,
+                              body
+                            )
 
-                      );
+                          );
+
+                        })
 
                     } else {
-                      observer.error(401);
+                      observer.error(errorCode);
                     }
 
                   });
@@ -479,7 +450,7 @@ export class CouchDB {
       httpOptions.body = body;
     }
 
-    if (config[COOKIE].length > 0 && typeof process !== 'object') {
+    if (config[COOKIE].length > 0 && typeof process === 'object') {
       httpOptions['headers'] = {
         'Cookie': config[COOKIE]
       }
