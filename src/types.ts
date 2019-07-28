@@ -119,6 +119,23 @@ export interface CouchDBAuthenticationResponse {
   roles: string[];
 }
 
+export interface CouchDBSessionInfo {
+  authenticated: string;
+  authentication_db: string;
+  authentication_handler: string[];
+}
+
+export interface CouchDBUserContext {
+  name: string;
+  roles: string[];
+}
+
+export interface CouchDBSession {
+  info: CouchDBSessionInfo;
+  ok: boolean;
+  userCtx: CouchDBUserContext;
+}
+
 export enum AuthorizationBehavior {
   cookie = 'cookie',
   open = 'open'

@@ -62,4 +62,8 @@ export namespace CouchUrls {
     return `${prefix(config)}/_users/${namespace}${username}`;
   }
 
+  export function session(config: WatcherConfig): string {
+    return `${prefix(config)}/_session`;
+  }
+
 }

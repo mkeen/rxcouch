@@ -25,7 +25,8 @@ import {
   AuthorizationBehavior,
   CouchDBCredentials,
   CouchDBFindQuery,
-  CouchDBFindResponse
+  CouchDBFindResponse,
+  CouchDBSession
 } from './types';
 
 import {
@@ -257,6 +258,24 @@ export class CouchDB {
             });
 
       });
+  }
+
+  public getSession() {
+    return Observable
+      .create((observer: Observer<CouchDBSession>) => {
+        this.config()
+          .pipe(take(1))
+          .subscribe((config: WatcherConfig) => {
+            this.httpRequest<CouchDBSession>(config, CouchUrls.session(config))
+              .fetch()
+              .subscribe((response: CouchDBSession) => {
+                observer.next(response);
+              });
+
+          });
+
+      });
+
   }
 
   private getDocument(
