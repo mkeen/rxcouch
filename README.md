@@ -1,5 +1,5 @@
 # 🛋 RxCouch
-Read, Write and Subscribe to documents in CouchDB in real-time with impunity. A documents is a `BehaviorSubject` and will automatically be updated from the database's `_changes` feed. Edits via calling `.next` are seamless and propagate across your local application, as well as other subscribers' applications instantly.
+Read, Write and Subscribe to documents in CouchDB in real-time with impunity. A document is a `BehaviorSubject` and will automatically be updated from the database's `_changes` feed. Edits via calling `.next` are seamless and propagate across your local application, as well as other subscribers' applications instantly.
   
 ### Why?
 CouchDB is a fantastic database for powering real-time user interfaces, but to truly bind to a document in real-time, there is a bit of work required in consuming the change feed API in an effective and scalable manner. RxCouch makes it so that you only have to reason about documents -- they'll be updated automatically for you -- and you don't have to care about the change feed particulars.
