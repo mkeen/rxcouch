@@ -5,7 +5,8 @@ import {
   FetchBehavior,
   HttpRequest,
   HttpRequestOptions,
-  HttpResponseWithHeaders
+  HttpResponseWithHeaders,
+  ServerErrorResponse
 } from '@mkeen/rxhttp';
 
 import { CouchUrls } from './couchurls';
@@ -153,6 +154,7 @@ export class CouchDB {
 
         (error: any) => {
           // This won't ever happen right now. Need to look more into this.
+          // * above statement is wrong. This does happen if the server goes down. Need to reconnect. Confirmed on node. Not sure about browser
           console.log("feed error", error);
         },
 
@@ -405,9 +407,11 @@ export class CouchDB {
               observer.next(of(response));
             },
 
-            (errorCode: number) => {
-              if (errorCode === 401 || errorCode === 403) {
+            (errorMessage: ServerErrorResponse) => {
+              if (errorMessage.errorCode === 401 || errorMessage.errorCode === 403) {
                 this.authenticated.next(false);
+                this.cookie.next('');
+
                 this.authenticate()
                   .subscribe((authResponse: HttpResponseWithHeaders<CouchDBAuthenticationResponse>) => {
                     // Need to handle failure here somehow
@@ -429,13 +433,13 @@ export class CouchDB {
                         })
 
                     } else {
-                      observer.error(errorCode);
+                      observer.error(errorMessage);
                     }
 
                   });
 
               } else {
-                observer.error(errorCode);
+                observer.error(errorMessage);
               }
 
             },
