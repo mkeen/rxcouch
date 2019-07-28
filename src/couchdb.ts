@@ -269,7 +269,7 @@ export class CouchDB {
             this.httpRequest<CouchDBSession>(config, CouchUrls.session(config))
               .fetch()
               .subscribe((response: CouchDBSession) => {
-                if (response.ok) {
+                if (response.ok && response.userCtx.name) {
                   this.authenticated.next(true);
                 }
 
