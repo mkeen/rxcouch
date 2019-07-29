@@ -59,9 +59,20 @@ export class CouchDB {
     this.databaseName = new BehaviorSubject<string>(rxCouchConfig.dbName);
     this.port = new BehaviorSubject<number>(rxCouchConfig.port || 5984);
     this.host = new BehaviorSubject<string>(rxCouchConfig.host || '127.0.0.1');
-    this.ssl = new BehaviorSubject<boolean>(rxCouchConfig.ssl || false);
+    this.ssl = new BehaviorSubject<boolean>(rxCouchConfig.ssl ? true : false);
     this.cookie = new BehaviorSubject<string>(rxCouchConfig.cookie || '');
-    this.trackChanges = new BehaviorSubject<boolean>(rxCouchConfig.trackChanges || true);
+    this.trackChanges = new BehaviorSubject<boolean>(rxCouchConfig.trackChanges ? true : false);
+
+    if (this.credentials) {
+      this.credentials.subscribe((_couchDbCreds: CouchDBCredentials) => {
+        this.authenticate()
+          .subscribe((_authResponse: HttpResponseWithHeaders<CouchDBAuthenticationResponse>) => {
+            // todo: figure out a way not to have to have this here
+          });
+
+      });
+
+    }
 
     this.config()
       .pipe(distinctUntilChanged(),
@@ -90,9 +101,12 @@ export class CouchDB {
           return this.attemptNewAuthentication(credentials.username, credentials.password)
             .pipe(
               tap((authResponse: any) => {
-                const cookie = authResponse.headers.get('set-cookie');
-                if (cookie) {
-                  this.cookie.next(cookie.split(';')[0].trim());
+                if (typeof process === 'object') {
+                  const cookie = authResponse.headers.get('set-cookie');
+                  if (cookie) {
+                    this.cookie.next(cookie.split(';')[0].trim());
+                  }
+
                 }
 
                 this.authenticated.next(authResponse.response.error === undefined);
@@ -271,7 +285,7 @@ export class CouchDB {
             this.httpRequest<CouchDBSession>(config, CouchUrls.session(config))
               .fetch()
               .subscribe((response: CouchDBSession) => {
-                if (response.ok && response.userCtx.name) {
+                if (response.ok && response.info.authenticated) {
                   this.authenticated.next(true);
                 }
 

@@ -10,6 +10,11 @@ export class CouchDBDocumentCollection {
   private snapshots: CouchDBHashIndex = {};
 
   public changed(document: CouchDBDocument): boolean {
+    // todo, dont let undefined get this far
+    if (!document) {
+      return false;
+    }
+
     let docCopy = JSON.parse(JSON.stringify(document));
     delete docCopy._rev;
 
