@@ -27,7 +27,8 @@ import {
   CouchDBCredentials,
   CouchDBFindQuery,
   CouchDBFindResponse,
-  CouchDBSession
+  CouchDBSession,
+  CouchDBBasicResponse
 } from './types';
 
 import {
@@ -287,6 +288,28 @@ export class CouchDB {
               .subscribe((response: CouchDBSession) => {
                 if (response.ok && response.info.authenticated) {
                   this.authenticated.next(true);
+                }
+
+                observer.next(response);
+              });
+
+          });
+
+      });
+
+  }
+
+  public destroySession() {
+    return Observable
+      .create((observer: Observer<CouchDBBasicResponse>) => {
+        this.config()
+          .pipe(take(1))
+          .subscribe((config: WatcherConfig) => {
+            this.httpRequest<HttpResponseWithHeaders<CouchDBBasicResponse>>(config, CouchUrls.session(config), FetchBehavior.simpleWithHeaders, 'delete')
+              .fetch()
+              .subscribe(({ response }) => {
+                if (response.ok) {
+                  this.authenticated.next(false);
                 }
 
                 observer.next(response);

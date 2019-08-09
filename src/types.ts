@@ -167,3 +167,7 @@ export interface CouchDBFindResponse {
   execution_states: object;
   bookmark: string;
 }
+
+export interface CouchDBBasicResponse {
+  ok: boolean;
+}
