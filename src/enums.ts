@@ -5,3 +5,4 @@ export const PORT = 3;
 export const SSL = 4;
 export const COOKIE = 5;
 export const TRACK_CHANGES = 6;
+export const AUTHENTICATED = 7;

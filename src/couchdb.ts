@@ -34,7 +34,8 @@ import {
 import {
   IDS,
   COOKIE,
-  TRACK_CHANGES
+  TRACK_CHANGES,
+  AUTHENTICATED
 } from './enums';
 
 import { CouchDBDocumentCollection } from './couchdbdocumentcollection';
@@ -62,7 +63,7 @@ export class CouchDB {
     this.host = new BehaviorSubject<string>(rxCouchConfig.host || '127.0.0.1');
     this.ssl = new BehaviorSubject<boolean>(rxCouchConfig.ssl ? true : false);
     this.cookie = new BehaviorSubject<string>(rxCouchConfig.cookie || '');
-    this.trackChanges = new BehaviorSubject<boolean>(rxCouchConfig.trackChanges ? true : false);
+    this.trackChanges = new BehaviorSubject<boolean>(rxCouchConfig.trackChanges === undefined ? true : rxCouchConfig.trackChanges);
 
     if (this.credentials) {
       this.credentials.subscribe((_couchDbCreds: CouchDBCredentials) => {
@@ -87,7 +88,7 @@ export class CouchDB {
             this.changeFeedAbort.next(true);
           }
 
-          return !(idsEmpty || !config[TRACK_CHANGES]);
+          return !(idsEmpty || !config[TRACK_CHANGES] || !config[AUTHENTICATED]);
         }),
         debounceTime(0)).subscribe((config: WatcherConfig) => {
           this.configureChangeFeed(config);
@@ -187,7 +188,8 @@ export class CouchDB {
       this.port,
       this.ssl,
       this.cookie,
-      this.trackChanges
+      this.trackChanges,
+      this.authenticated
     );
 
   }

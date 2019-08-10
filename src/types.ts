@@ -1,7 +1,7 @@
 import { BehaviorSubject, Subscription } from 'rxjs';
 import { HttpRequestHeaders } from '@mkeen/rxhttp';
 
-export type WatcherConfig = [string[], string, string, number, boolean, string, boolean];
+export type WatcherConfig = [string[], string, string, number, boolean, string, boolean, boolean];
 
 export type CouchDBDocument = {
   _id: string;
