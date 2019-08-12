@@ -68,8 +68,11 @@ export class CouchDB {
     if (this.credentials) {
       this.credentials.subscribe((_couchDbCreds: CouchDBCredentials) => {
         this.authenticate()
-          .subscribe((_authResponse: HttpResponseWithHeaders<CouchDBAuthenticationResponse>) => {
-            // todo: figure out a way not to have to have this here
+          .subscribe((authResponse: HttpResponseWithHeaders<CouchDBAuthenticationResponse>) => {
+            if (authResponse.response.ok) {
+              this.authenticated.next(true);
+            }
+
           });
 
       });
@@ -79,6 +82,7 @@ export class CouchDB {
     this.config()
       .pipe(distinctUntilChanged(),
         filter((config: WatcherConfig) => {
+          console.log("config changed", config);
           const idsEmpty = config[IDS].length === 0;
           if (idsEmpty || config[TRACK_CHANGES] === false) {
             if (this.changeFeedHttpRequest) {
