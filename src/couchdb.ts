@@ -133,6 +133,10 @@ export class CouchDB {
                 this.authenticated.next(false);
               }
 
+              if (!this.loginAttemptMade.value) {
+                this.loginAttemptMade.next(true);
+              }
+
               return false;
             } else {
               return true;
