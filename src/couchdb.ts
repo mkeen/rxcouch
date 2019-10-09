@@ -1,5 +1,5 @@
 import { Observer, Observable, Subject, BehaviorSubject, combineLatest, of } from 'rxjs';
-import { distinctUntilChanged, take, map, filter, mergeAll, tap, skip, takeUntil, debounceTime } from 'rxjs/operators';
+import { distinctUntilChanged, take, map, filter, mergeAll, tap, skip, takeUntil, debounceTime, catchError } from 'rxjs/operators';
 
 import {
   FetchBehavior,
@@ -28,7 +28,8 @@ import {
   CouchDBFindQuery,
   CouchDBFindResponse,
   CouchDBSession,
-  CouchDBBasicResponse
+  CouchDBBasicResponse,
+  CouchDBSessionEnvelope
 } from './types';
 
 import {
@@ -43,6 +44,7 @@ import { CouchDBDocumentCollection } from './couchdbdocumentcollection';
 export class CouchDB {
   public documents: CouchDBDocumentCollection = new CouchDBDocumentCollection();
   public authenticated: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
+  public userSession: BehaviorSubject<CouchDBSession | null> = new BehaviorSubject<CouchDBSession | null>(null)
   private databaseName: BehaviorSubject<string>;
   private host: BehaviorSubject<string>;
   private port: BehaviorSubject<number>;
@@ -67,13 +69,27 @@ export class CouchDB {
 
     if (this.credentials) {
       this.credentials.subscribe((_couchDbCreds: CouchDBCredentials) => {
+        console.log("got keyz");
         this.authenticate()
-          .subscribe((authResponse: HttpResponseWithHeaders<CouchDBAuthenticationResponse>) => {
-            if (authResponse.response.ok) {
-              this.authenticated.next(true);
-            }
+          .pipe(catchError((err, _err1) => {
+            return of(err);
+          }))
+          .subscribe(
+            (authResponse: HttpResponseWithHeaders<CouchDBAuthenticationResponse>) => {
+              console.log("tried with some keyz");
+              if (authResponse.response.ok) {
+                this.authenticated.next(true);
+              }
 
-          });
+            },
+
+            (err) => {
+              console.log("errorw", err);
+            },
+
+            () => {
+              console.log("cinokee");
+            });
 
       });
 
@@ -94,6 +110,7 @@ export class CouchDB {
 
           return !(idsEmpty || !config[TRACK_CHANGES] || !config[AUTHENTICATED]);
         }),
+
         debounceTime(0)).subscribe((config: WatcherConfig) => {
           this.configureChangeFeed(config);
         });
@@ -101,16 +118,17 @@ export class CouchDB {
   }
 
   public authenticate(): Observable<HttpResponseWithHeaders<CouchDBAuthenticationResponse>> {
-    if (this.auth === AuthorizationBehavior.cookie) {
-      return (<Observable<CouchDBCredentials>>this.credentials)
+    if (this.auth === AuthorizationBehavior.cookie && this.credentials !== null) {
+      return this.credentials
         .pipe(map((credentials: CouchDBCredentials) => {
           return this.attemptNewAuthentication(credentials.username, credentials.password)
             .pipe(
               tap((authResponse: any) => {
+                console.log("attempting login");
                 if (typeof process === 'object') {
                   const cookie = authResponse.headers.get('set-cookie');
                   if (cookie) {
-                    this.cookie.next(cookie.split(';')[0].trim());
+                    this.cookie.next(cookie);
                   }
 
                 }
@@ -122,7 +140,7 @@ export class CouchDB {
 
     } else {
       this.authenticated.next(true);
-      return of({ headers: {}, response: { ok: true, roles: [], name: '' } });
+      return of({ headers: new Headers(), response: { ok: true, roles: [], name: '' } }); // Maybe a more suitable value here would be "null"
     }
 
   }
@@ -260,48 +278,60 @@ export class CouchDB {
         this.config()
           .pipe(
             take(1),
-            map(
-              (config: WatcherConfig) => {
-                return this.httpRequestWithAuthRetry<CouchDBFindResponse>(
-                  config,
-                  CouchUrls.find(config),
-                  FetchBehavior.simple,
-                  'POST',
-                  JSON.stringify(query)
-                );
+            map((config: WatcherConfig) => {
+              return this.httpRequestWithAuthRetry<CouchDBFindResponse>(
+                config,
+                CouchUrls.find(config),
+                FetchBehavior.simple,
+                'POST',
+                JSON.stringify(query)
+              );
 
-              }),
+            }),
+            mergeAll(),
+            take(1),
+            map((findResponse: CouchDBFindResponse) => {
+              return findResponse.docs.map(document => document);
+            })
 
-            mergeAll(), take(1), map((findResponse: CouchDBFindResponse) => {
-              return findResponse.docs.map((document: CouchDBDocument) => {
-                return document;
-              })
-            })).subscribe((documents: CouchDBDocument[]) => {
-              observer.next(documents);
-            });
+          ).subscribe((documents: CouchDBDocument[]) => {
+            observer.next(documents);
+          });
 
       });
+
   }
 
   public getSession() {
     return Observable
-      .create((observer: Observer<CouchDBSession>) => {
+      .create((observer: Observer<CouchDBSessionEnvelope>) => {
         this.config()
           .pipe(take(1))
           .subscribe((config: WatcherConfig) => {
-            this.httpRequest<CouchDBSession>(config, CouchUrls.session(config))
+            this.httpRequest<CouchDBSession>(config, CouchUrls.session(config), FetchBehavior.simple)
               .fetch()
-              .subscribe((response: CouchDBSession) => {
-                console.log("got response", response);
-                if (response.ok && response.info.authenticated) {
-                  console.log("got session");
-                  this.authenticated.next(true);
-                } else {
-                  this.authenticated.next(false);
-                }
+              .subscribe(
+                (response: CouchDBSession) => {
+                  if (response.ok && response.info.authenticated) {
+                    this.authenticated.next(true);
+                  } else {
+                    this.authenticated.next(false);
+                  }
 
-                observer.next(response);
-              });
+                  const next: CouchDBSessionEnvelope = { session: response };
+                  if (typeof process === 'object') {
+                    if (config[COOKIE] && config[COOKIE].length) {
+                      next.cookie = config[COOKIE];
+                    }
+
+                  }
+
+                  observer.next(next);
+                },
+
+                (err: any) => {
+                  observer.error(err);
+                });
 
           });
 
@@ -426,9 +456,8 @@ export class CouchDB {
               'username': username,
               'password': password
             })
-          ).fetch()
-        }),
-        mergeAll());
+          ).fetch();
+        }));
   }
 
   private httpRequestWithAuthRetry<T>(
@@ -526,12 +555,16 @@ export class CouchDB {
 
     if (config[COOKIE].length > 0 && typeof process === 'object') {
       httpOptions['headers'] = {
-        'Cookie': config[COOKIE]
+        'Cookie': this.cookieForRequestHeader(config[COOKIE])
       }
 
     }
 
     return httpOptions;
+  }
+
+  private cookieForRequestHeader(cookie: string): string {
+    return cookie.split(';')[0].trim();
   }
 
   private stopListeningForLocalChanges(doc_id: string): void {

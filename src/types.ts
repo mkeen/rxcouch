@@ -130,6 +130,11 @@ export interface CouchDBUserContext {
   roles: string[];
 }
 
+export interface CouchDBSessionEnvelope {
+  cookie?: string;
+  session: CouchDBSession;
+}
+
 export interface CouchDBSession {
   info: CouchDBSessionInfo;
   ok: boolean;
