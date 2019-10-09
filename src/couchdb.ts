@@ -42,20 +42,20 @@ import {
 import { CouchDBDocumentCollection } from './couchdbdocumentcollection';
 
 export class CouchDB {
-  public documents: CouchDBDocumentCollection = new CouchDBDocumentCollection();
-  public userSession: BehaviorSubject<CouchDBSession | null> = new BehaviorSubject<CouchDBSession | null>(null)
   public authenticated: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
+  public documents: CouchDBDocumentCollection = new CouchDBDocumentCollection();
+  public loginAttemptMade: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
+  public userSession: BehaviorSubject<CouchDBSession | null> = new BehaviorSubject<CouchDBSession | null>(null);
 
+  private appDocChanges: CouchDBAppChangesSubscriptions = {};
+  private changeFeedHttpRequest: HttpRequest<CouchDBChanges> | null = null;
+  private changeFeedAbort: Subject<boolean> = new Subject();
+  private cookie: BehaviorSubject<string>;
   private databaseName: BehaviorSubject<string>;
   private host: BehaviorSubject<string>;
   private port: BehaviorSubject<number>;
   private ssl: BehaviorSubject<boolean>;
-  private cookie: BehaviorSubject<string>;
   private trackChanges: BehaviorSubject<boolean>;
-  private appDocChanges: CouchDBAppChangesSubscriptions = {};
-  private changeFeedHttpRequest: HttpRequest<CouchDBChanges> | null = null;
-  private changeFeedAbort: Subject<boolean> = new Subject();
-  private authenticatingNewCredentials: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
 
   constructor(
     rxCouchConfig: RxCouchConfig,
@@ -335,9 +335,9 @@ export class CouchDB {
       .create((observer: Observer<CouchDBSessionEnvelope>) => {
         this.authenticated
           .pipe(
-            filter(authenticated => !!authenticated),
+            filter((authenticated: boolean) => !!authenticated),
             take(1)
-          ).subscribe((_authenticated) => {
+          ).subscribe((_authenticated: boolean) => {
             this.config()
               .pipe(take(1))
               .subscribe((config: WatcherConfig) => {
@@ -503,7 +503,12 @@ export class CouchDB {
               'password': password
             })
 
-          ).fetch();
+          ).fetch().pipe(
+            tap((_response: any) => {
+              this.loginAttemptMade.next(true);
+            })
+
+          );
 
         }),
 
