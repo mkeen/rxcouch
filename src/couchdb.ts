@@ -69,26 +69,13 @@ export class CouchDB {
 
     if (this.credentials) {
       this.credentials.subscribe((_couchDbCreds: CouchDBCredentials) => {
-        console.log("got keyz");
         this.authenticate()
-          .pipe(catchError((err, _err1) => {
-            return of(err);
-          }))
           .subscribe(
             (authResponse: HttpResponseWithHeaders<CouchDBAuthenticationResponse>) => {
-              console.log("tried with some keyz");
               if (authResponse.response.ok) {
                 this.authenticated.next(true);
               }
 
-            },
-
-            (err) => {
-              console.log("errorw", err);
-            },
-
-            () => {
-              console.log("cinokee");
             });
 
       });
@@ -345,9 +332,9 @@ export class CouchDB {
         this.config()
           .pipe(take(1))
           .subscribe((config: WatcherConfig) => {
-            this.httpRequest<HttpResponseWithHeaders<CouchDBBasicResponse>>(config, CouchUrls.session(config), FetchBehavior.simpleWithHeaders, 'delete')
+            this.httpRequest<CouchDBBasicResponse>(config, CouchUrls.session(config), FetchBehavior.simple, 'delete')
               .fetch()
-              .subscribe(({ response }) => {
+              .subscribe((response: CouchDBBasicResponse) => {
                 if (response.ok) {
                   this.authenticated.next(false);
                 }
@@ -587,7 +574,7 @@ export class CouchDB {
 
           if (this.documents.changed(changedDoc)) {
             this.stopListeningForLocalChanges(changedDoc._id);
-            this.doc(changedDoc).subscribe((e: any) => { });
+            this.doc(changedDoc).subscribe((_e: any) => { });
           }
 
         });
