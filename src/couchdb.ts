@@ -305,9 +305,15 @@ export class CouchDB {
               .subscribe(
                 (response: CouchDBSession) => {
                   if (response.ok && response.info.authenticated) {
-                    this.authenticated.next(true);
+                    if (!this.authenticated.value) {
+                      this.authenticated.next(true);
+                    }
+
                   } else {
-                    this.authenticated.next(false);
+                    if (!!this.authenticated.value) {
+                      this.authenticated.next(false);
+                    }
+
                   }
 
                   const envelope: CouchDBSessionEnvelope = { session: response };
