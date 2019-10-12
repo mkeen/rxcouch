@@ -2,19 +2,19 @@
 Read, Write and Subscribe to documents in CouchDB in real-time with impunity. A document is a `BehaviorSubject` and will automatically be updated from the database's `_changes` feed. Edits via calling `.next` are seamless and propagate across your local application, as well as other subscribers' applications instantly.
   
 ### Why?
-CouchDB is a fantastic database for powering real-time user interfaces, but to truly bind to a document in real-time, there is a bit of work required in consuming the change feed API in an effective and scalable manner. RxCouch makes it so that you only have to reason about documents -- they'll be updated automatically for you -- and you don't have to care about the change feed particulars.
+CouchDB is a fantastic database for powering real-time user interfaces... but to truly bind to a document in real-time, there is a bit of work required around consuming the change feed API in an effective and scalable manner. RxCouch makes it so that you only have to reason about documents -- they'll be updated automatically for you -- and you don't have to care about the change feed particulars.
 
 ### Features
 
 📀 **Universal** -- Works on both NodeJS and Browser  
 
-🔐 **Authentication** -- Supports wide open CouchDB databases (admin party) as well as protected databases. Uses cookie-based auth, which is the secure, and recommended method in both Browser and Node.
+🔐 **Authentication** -- Supports wide open CouchDB databases (admin party) as well as protected databases.
 
-📡 **Automatic Change Notification** -- RxCouch keeps track of all documents that the user touches. RxCouch is always subscribed to CouchDB's `_changes` feed and utilizes the `_doc_ids` filter to ensure you only get the changes to documents you've fetched or created in the current scope of your user interface. A document is a `BehaviorSubject`. RxCouch is real-time by default.
+📡 **Automatic Change Notification** -- RxCouch keeps track of all documents that it touches. By default, RxCouch is always subscribed to CouchDB's `_changes` feed and utilizes the `_doc_ids` filter to ensure you only get the changes to documents you've fetched or created in the current scope of your user interface.
    
-💾 **Automatic Document Creation** -- If you pass in a document, without an `_id` field, RxCouch will automatically create it in the database and return a `BehaviorSubject`.  
+💾 **Automatic Document Creation** -- If you pass in a document, without an `_id` field, RxCouch will automatically create it in the database and return a `BehaviorSubject`.
    
-📝 **Automatic Document Editing** -- If you pass in a complete document that doesn't match a previously received version of a known document (one that the current scope of your user interface has fetched or created), the new version will be sent to couchdb and saved. If other users of your application and are watching this document, they will receive the new version of the document in real-time.  
+📝 **Automatic Document Editing** -- If you pass in a complete document that doesn't match a previously received version of a known document (one that the current scope of your user interface has fetched or created), the new version will be sent to couchdb and saved. If other users of your application are watching this document, they will receive the new version of the document in real-time.  
 
 😎 **Automatic Document Fetching** -- If you subscribe to a document `_id` that RxCouch hasn't seen yet, it will be automatically and transparently fetched, before being injected into a `BehaviorSubject` and returned.
   
@@ -25,9 +25,9 @@ https://www.npmjs.com/package/@mkeen/rxcouch
 ### Usage
 `CouchDB` is the class you will interact with most. An instance of `CouchDB` provides the `doc` method, which accepts as an argument any document that conforms to `CouchDBDocument` or `CouchDBPreDocument` (a way of expressing a document that isn't persisted yet), or a Document `_id` -- in the form of a `string`. A call to `.doc` returns a `BehaviorSubject`.
   
-All calls to `doc` will result in the resulting doc `_id` being added to the `_changes` watcher's  `_doc_ids` filter. All `doc` `BehaviorSubject`s will be kept up to date in real time as the documents they represent are modified in the database.
+All calls to `doc` will result in the relevent doc `_id` being added to the `_changes` watcher's  `_doc_ids` filter. All `doc` `BehaviorSubject`s will be kept up to date in real time as the documents they represent are modified in the database.
   
-Passing a modified version of the document  `.next` on any `BehaviorSubject` returned from `doc` will result in any changes being immediately written to the database.
+Passing a modified version of the document `.next` on any `BehaviorSubject` returned from `doc` will result in any modifications being immediately written to the database.
 
 ### Example
 
@@ -50,7 +50,7 @@ const couchDBInstance = new CouchDB({
       of({username: 'username',                                 // In this example, the username and password
       password: 'password'}}                                    // are hardcoded. But by using an observable,
     );                                                          // the password can be propmted for and 
-                                                                // supplied interactively.
+                                                                // supplied interactively by a UI.
     
 // Get the latest version of a known document.
 const couchDBInstance.doc('4b75030702ae88064daf8182ca00364e')   // Pass in a document id of a document stored in
