@@ -6,3 +6,5 @@ export const SSL = 4;
 export const COOKIE = 5;
 export const TRACK_CHANGES = 6;
 export const AUTHENTICATED = 7;
+
+export const LOCALHOST = '127.0.0.1';

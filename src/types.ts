@@ -1,7 +1,17 @@
 import { BehaviorSubject, Subscription } from 'rxjs';
 import { HttpRequestHeaders } from '@mkeen/rxhttp';
 
-export type WatcherConfig = [string[], string, string, number, boolean, string, boolean, boolean];
+// Internal configuration
+export type WatcherConfig = [
+  string[],              // 0
+  string,                // 1
+  string,                // 2
+  number,                // 3
+  boolean,               // 4
+  string | null,         // 5
+  boolean,               // 6
+  boolean                // 7
+];
 
 export type CouchDBDocument = {
   _id: string;
@@ -44,33 +54,37 @@ export type CouchDBDesignList = 'list';
 
 export type CouchDBAuthentication = (username: string, password: string) => void;
 
+export interface CouchDBBasicResponse {
+  ok: boolean;
+}
+
 export interface CouchDBChange {
   rev: string;
 }
 
 export interface RxCouchConfig {
-  host?: string;
   dbName: string;
+  host?: string;
   port?: number;
   ssl?: boolean;
-  cookie?: string;
+  cookie?: string | null;
   trackChanges?: boolean;
 }
 
 export interface CouchDBChanges {
-  changes: CouchDBChange[];
   id: string;
-  seq?: string;
-  last_seq?: string;
   doc: CouchDBDocument;
+  changes: CouchDBChange[];
+  last_seq?: string;
+  seq?: string;
 }
 
 export interface CouchDBDocumentRevisionResponse {
   id: string;
-  ok?: boolean;
-  error?: string;
-  reason?: string;
   rev: string;
+  error?: string;
+  ok?: boolean;
+  reason?: string;
 }
 
 export interface CouchDBError {
@@ -89,6 +103,7 @@ export interface CouchDBDesignViewResponse {
 }
 
 export interface CouchDBDesignViewOptions {
+  attachments?: boolean;
   conflicts?: boolean;
   descending?: boolean;
   endkey?: any;
@@ -96,7 +111,6 @@ export interface CouchDBDesignViewOptions {
   group?: boolean;
   group_level?: number;
   include_docs?: boolean;
-  attachments?: boolean;
   att_encoding_info?: boolean;
   inclusive_end?: boolean;
   key?: any;
@@ -130,14 +144,9 @@ export interface CouchDBUserContext {
   roles: string[];
 }
 
-export interface CouchDBSessionEnvelope {
-  cookie?: string;
-  session: CouchDBSession;
-}
-
 export interface CouchDBSession {
-  info: CouchDBSessionInfo;
   ok: boolean;
+  info: CouchDBSessionInfo;
   userCtx: CouchDBUserContext;
 }
 
@@ -171,8 +180,4 @@ export interface CouchDBFindResponse {
   warning: string;
   execution_states: object;
   bookmark: string;
-}
-
-export interface CouchDBBasicResponse {
-  ok: boolean;
 }
