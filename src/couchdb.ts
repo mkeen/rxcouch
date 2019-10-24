@@ -105,7 +105,6 @@ export class CouchDB {
       this.credentials.subscribe((couchDbCreds: CouchDBCredentials) => { // memory leak.. need to unsub
         this.authenticate(couchDbCreds).pipe(take(1)).subscribe(
           (_authSuccess) => {
-            console.log("authenticated", _authSuccess);
             if (!this.authenticated.value) {
               this.authenticated.next(true);
             }
@@ -113,7 +112,6 @@ export class CouchDB {
           },
 
           (_error) => {
-            console.log("not authed");
             if (!!this.authenticated.value) {
               this.authenticated.next(false);
             }
@@ -135,7 +133,6 @@ export class CouchDB {
             .pipe(take(1))
             .subscribe(
               (_authResponse: CouchDBAuthenticationResponse) => {
-                console.log(_authResponse, "did a new auth");
                 if (this.authenticated.value !== true) {
                   this.authenticated.next(true);
                 }
@@ -298,13 +295,11 @@ export class CouchDB {
 
         } else {
           if (this.documents.changed(<CouchDBDocument>document)) {
-            console.log("going to save", document)
             this.saveDocument(document).subscribe((doc) => {
               observer.next(this.doc(document._id));
             });
             
           } else {
-            console.log("not saved, pulled existing")
             observer.next(this.documents.doc(document._id));
           }
 
