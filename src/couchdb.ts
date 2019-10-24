@@ -135,7 +135,7 @@ export class CouchDB {
             .pipe(take(1))
             .subscribe(
               (_authResponse: CouchDBAuthenticationResponse) => {
-                console.log(_authResponse, "yeash");
+                console.log(_authResponse, "did a new auth");
                 if (this.authenticated.value !== true) {
                   this.authenticated.next(true);
                 }
@@ -297,16 +297,15 @@ export class CouchDB {
           }
 
         } else {
-          if (this.documents.isValidCouchDBDocument(document)) {
-            if (this.documents.changed(<CouchDBDocument>document)) {
-              this.saveDocument(document, observer);
-              observer.next(this.documents.doc(document._id));
-            } else {
-              observer.next(this.documents.doc(document._id));
-            }
-
+          if (this.documents.changed(<CouchDBDocument>document)) {
+            console.log("going to save", document)
+            this.saveDocument(document).subscribe((doc) => {
+              observer.next(this.doc(document._id));
+            });
+            
           } else {
-            this.saveDocument(document, observer);
+            console.log("not saved, pulled existing")
+            observer.next(this.documents.doc(document._id));
           }
 
         }
@@ -359,14 +358,12 @@ export class CouchDB {
               )
               .subscribe(
                 (response: CouchDBSession) => {
-                  console.log("calling auth reply", response);
                   if (response.ok && response.info.authenticated) {
                     if (!this.authenticated.value) {
                       this.authenticated.next(true);
                     }
 
                   } else {
-                    console.log("not logged in", response);
                     if (!!this.authenticated.value) {
                       this.authenticated.next(false);
                     }
@@ -466,10 +463,9 @@ export class CouchDB {
   }
 
   private saveDocument(
-    document: CouchDBDocument | CouchDBPreDocument,
-    observer: Observer<BehaviorSubject<CouchDBDocument>>
-  ): void {
-    this.config()
+    document: CouchDBDocument | CouchDBPreDocument
+  ): Observable<CouchDBDocumentRevisionResponse> {
+    return this.config()
       .pipe(
         take(1),
         map(
@@ -488,23 +484,7 @@ export class CouchDB {
 
           }),
 
-        mergeAll()
-      ).subscribe(
-        (docRevResponse: CouchDBDocumentRevisionResponse): void => {
-          if (!docRevResponse.error) {
-            if (this.documents.isPreDocument(document)) {
-              document._id = docRevResponse.id;
-            }
-
-            document._rev = docRevResponse.rev;
-            observer.next(this.documents.doc(<CouchDBDocument>document));
-
-            this.listenForLocalChanges(document._id);
-          }
-
-          observer.complete();
-        }
-
+          mergeAll()
       );
 
   }
@@ -513,7 +493,6 @@ export class CouchDB {
     username: string,
     password: string
   ): Observable<CouchDBAuthenticationResponse> {
-    console.log("Attempting");
     return this.config()
       .pipe(
         take(1),
@@ -649,8 +628,6 @@ export class CouchDB {
         httpOptions['headers'] = {
           'Cookie': this.cookieForRequestHeader((<string>config[COOKIE]))
         }
-
-        console.log(httpOptions);
 
       }
 
