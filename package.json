@@ -1,6 +1,6 @@
 {
   "name": "@mkeen/rxcouch",
-  "version": "3.2.9",
+  "version": "3.3.0",
   "description": "Real Time RxJs Based CouchDB Client",
   "keywords": [
     "couchdb-client",
