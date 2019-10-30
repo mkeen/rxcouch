@@ -28,7 +28,8 @@ import {
   CouchDBFindQuery,
   CouchDBFindResponse,
   CouchDBSession,
-  CouchDBBasicResponse
+  CouchDBBasicResponse,
+  CouchDBUserContext
 } from './types';
 
 import {
@@ -49,6 +50,7 @@ export class CouchDB {
   public loginAttemptMade: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
   public userSession: BehaviorSubject<CouchDBSession | null> = new BehaviorSubject<CouchDBSession | null>(null);
   public cookie: BehaviorSubject<string | null> = new BehaviorSubject<string | null>(null);
+  public context: BehaviorSubject<CouchDBUserContext | null> = new BehaviorSubject<CouchDBUserContext | null>(null);
 
   private changeFeedAbort: Subject<boolean> = new Subject();
   private appDocChanges: CouchDBAppChangesSubscriptions = {};
@@ -130,15 +132,19 @@ export class CouchDB {
         if (providedCredentials) {
           const { username, password } = providedCredentials;
           this.attemptNewAuthentication(username, password).pipe(take(1)).subscribe(
-            (_authResponse: CouchDBAuthenticationResponse) => {
+            (authResponse: CouchDBAuthenticationResponse) => {
               if (this.authenticated.value !== true) {
                 this.authenticated.next(true);
               }
+
+              delete authResponse.ok;
+              this.context.next(<CouchDBUserContext>authResponse);
 
               observer.next(true);
             },
 
             (_error) => {
+              this.context.next(null);
               observer.error(false);
               observer.complete();
             }
@@ -156,17 +162,20 @@ export class CouchDB {
                 if (this.authenticated.value !== authenticated) {
                   this.authenticated.next(authenticated);
                   if (ok) {
+                    this.context.next(session.userCtx);
                     observer.next(true);
                   }
 
                 }
 
+                this.context.next(null);
                 observer.error(false);
               }
 
             );
 
           } else {
+            this.context.next(null);
             observer.error(false);
           }
 
