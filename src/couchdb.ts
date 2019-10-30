@@ -353,6 +353,10 @@ export class CouchDB {
               )
               .subscribe(
                 (response: CouchDBSession) => {
+                  if(!this.loginAttemptMade.value) {
+                    this.loginAttemptMade.next(true);
+                  }
+
                   if (response.ok && response.info.authenticated) {
                     if (!this.authenticated.value) {
                       this.authenticated.next(true);
