@@ -3,5 +3,6 @@ export {
   CouchDBDocument,
   CouchDBPreDocument,
   AuthorizationBehavior,
-  CouchDBCredentials
+  CouchDBCredentials,
+  CouchDBUserContext,
 } from './types';
