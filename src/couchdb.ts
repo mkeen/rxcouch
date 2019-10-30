@@ -85,7 +85,7 @@ export class CouchDB {
         filter((config: WatcherConfig) => {
           console.log("config changed", config);
           const idsEmpty = config[IDS].length === 0;
-          if (idsEmpty || config[TRACK_CHANGES] === false) {
+          if (idsEmpty || !config[TRACK_CHANGES]) {
             if (this.changeFeedHttpRequest) {
               this.changeFeedHttpRequest.cancel();
             }
@@ -93,11 +93,12 @@ export class CouchDB {
             this.changeFeedAbort.next(true);
           }
 
-          return !(idsEmpty || !config[TRACK_CHANGES] || !config[AUTHENTICATED]);
+          return !idsEmpty && config[TRACK_CHANGES] && config[AUTHENTICATED];
         }),
 
         debounceTime(0)
       ).subscribe((config: WatcherConfig) => {
+        console.log("configuration passed debounce");
         this.configureChangeFeed(config);
       });
 
