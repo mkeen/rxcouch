@@ -151,9 +151,8 @@ export class CouchDB {
             this.getSession()
               .pipe(take(1)).subscribe(
                 (session: CouchDBSession) => {
-                  const { ok } = session;
-
-                  const authenticated = name !== null;
+                  const { ok, userCtx } = session;
+                  const authenticated = !!userCtx.name;
 
                   if (this.authenticated.value !== authenticated) {
                     this.authenticated.next(authenticated);
