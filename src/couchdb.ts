@@ -358,11 +358,15 @@ export class CouchDB {
             }
 
             if (response.ok && response.info.authenticated) {
+              this.context.next(response.userCtx);
+
               if (!this.authenticated.value) {
                 this.authenticated.next(true);
               }
 
             } else {
+              this.context.next(null);
+
               if (!!this.authenticated.value) {
                 this.authenticated.next(false);
               }
