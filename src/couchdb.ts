@@ -370,8 +370,10 @@ export class CouchDB {
 
                 (err: any) => {
                   observer.error(err);
-                }
+                },
 
+                // () => { this.loginAttemptMade.next(true); } // todo see if this could replace above call.
+                // not sure that this would actuallt work or not. If not, should be easy to add to rxhttp
               );
 
           });
