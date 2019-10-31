@@ -1,5 +1,5 @@
 import { Observer, Observable, Subject, BehaviorSubject, combineLatest, of } from 'rxjs';
-import { distinctUntilChanged, take, map, filter, mergeAll, tap, skip, takeUntil, debounceTime } from 'rxjs/operators';
+import { distinctUntilChanged, take, map, mergeAll, tap, skip, takeUntil, debounceTime } from 'rxjs/operators';
 
 import {
   FetchBehavior,
@@ -84,25 +84,22 @@ export class CouchDB {
     this.config()
       .pipe(
         distinctUntilChanged(),
-        filter((config: WatcherConfig) => {
-          console.log("config changed", config);
-          const idsEmpty = config[IDS].length === 0;
-          if (idsEmpty || !config[TRACK_CHANGES]) {
-            if (this.changeFeedHttpRequest) {
-              this.changeFeedHttpRequest.cancel();
-            }
+        debounceTime(0),
+      ).subscribe((config: WatcherConfig) => {(config: WatcherConfig) => {
+        const idsEmpty = config[IDS].length === 0;
 
-            this.changeFeedAbort.next(true);
+        if(idsEmpty || !config[TRACK_CHANGES]) {
+          this.closeChangeFeed();
+        } else {
+          if(config[AUTHENTICATED]) {
+            this.configureChangeFeed(config);
           }
 
-          return !idsEmpty && config[TRACK_CHANGES] && config[AUTHENTICATED];
-        }),
+        }
 
-        debounceTime(0)
-      ).subscribe((config: WatcherConfig) => {
-        console.log("configuration passed debounce");
-        this.configureChangeFeed(config);
-      });
+      }
+
+    });
 
     if (this.credentials) {
       this.credentials.subscribe((couchDbCreds: CouchDBCredentials) => { // memory leak.. need to unsub
@@ -185,6 +182,14 @@ export class CouchDB {
 
     });
 
+  }
+
+  public closeChangeFeed() {
+    if(this.changeFeedHttpRequest) {
+      this.changeFeedHttpRequest.cancel();
+    }
+
+    this.changeFeedAbort.next(true);
   }
 
   public configureChangeFeed(config: WatcherConfig) {
