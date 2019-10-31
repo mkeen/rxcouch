@@ -332,6 +332,7 @@ export class CouchDB {
           );
 
         }),
+
         mergeAll(),
         take(1),
         map((findResponse: CouchDBFindResponse) => {
@@ -473,19 +474,18 @@ export class CouchDB {
   ): Observable<CouchDBDocumentRevisionResponse> {
     return this.config().pipe(
       take(1),
-      map(
-        (config: WatcherConfig) => {
-          return this.httpRequestWithAuthRetry<CouchDBDocumentRevisionResponse>(
+      map((config: WatcherConfig) => {
+        return this.httpRequestWithAuthRetry<CouchDBDocumentRevisionResponse>(
+          config,
+          CouchUrls.document(
             config,
-            CouchUrls.document(
-              config,
-              !this.documents.isPreDocument(document) ? document._id : undefined,
-            ),
+            !this.documents.isPreDocument(document) ? document._id : undefined,
+          ),
 
-            FetchBehavior.simple,
-            this.documents.isPreDocument(document) ? 'POST' : 'PUT',
-            JSON.stringify(document)
-          );
+          FetchBehavior.simple,
+          this.documents.isPreDocument(document) ? 'POST' : 'PUT',
+          JSON.stringify(document)
+        );
 
       }),
       mergeAll()
@@ -517,7 +517,7 @@ export class CouchDB {
             this.loginAttemptMade.next(true);
           })
 
-        )
+        );
 
       }),
       mergeAll()
@@ -536,65 +536,64 @@ export class CouchDB {
       url,
       behavior,
       method,
-      body
+      body,
     )
 
   ): Observable<T> {
-    return Observable
-      .create((observer: Observer<Observable<T>>): void => {
-        (behavior === FetchBehavior.simpleWithHeaders ?
-          (<Observable<any>>httpRequest.fetch()).pipe(
-            tap(this.saveCookie),
-            map(this.extractResponse)) :
-          httpRequest.fetch()
-        ).subscribe((response: T) => {
-          observer.next(of(response));
-        },
+    return Observable.create((observer: Observer<Observable<T>>): void => {
+      (behavior === FetchBehavior.simpleWithHeaders ?
+        (<Observable<any>>httpRequest.fetch()).pipe(
+          tap(this.saveCookie),
+          map(this.extractResponse)) :
+        httpRequest.fetch()
+      ).subscribe((response: T) => {
+        observer.next(of(response));
+      },
 
-        (errorMessage: ServerErrorResponse) => {
-          if (errorMessage.errorCode === 401 || errorMessage.errorCode === 403) {
-            this.authenticated.next(false);
-            this.cookie.next(null);
-            this.authenticate().subscribe(
-              (authResponse: boolean) => {
-                if (authResponse) {
-                  this.config().pipe(take(1)).subscribe((config: WatcherConfig) => {
-                    observer.next(
-                      this.httpRequestWithAuthRetry<T>(
-                        config,
-                        url,
-                        behavior,
-                        method,
-                        body
-                      )
+      (errorMessage: ServerErrorResponse) => {
+        if (errorMessage.errorCode === 401 || errorMessage.errorCode === 403) {
+          this.authenticated.next(false);
+          this.cookie.next(null);
+          this.authenticate().subscribe(
+            (authResponse: boolean) => {
+              if (authResponse) {
+                this.config().pipe(take(1)).subscribe((config: WatcherConfig) => {
+                  observer.next(
+                    this.httpRequestWithAuthRetry<T>(
+                      config,
+                      url,
+                      behavior,
+                      method,
+                      body
+                    )
 
-                    );
+                  );
 
-                  });
+                });
 
-                } else {
-                  observer.error(errorMessage);
-                }
+              } else {
+                observer.error(errorMessage);
+              }
 
-              },
+            },
 
-              (error) => {
-                observer.error(error);
-              });
+            (error) => {
+              observer.error(error);
+            });
 
-            } else {
-              observer.error(errorMessage);
-            }
-
-          },
-
-          () => {
-            observer.complete();
+          } else {
+            observer.error(errorMessage);
           }
 
-        );
+        },
 
-      }).pipe(mergeAll());
+        () => {
+          observer.complete();
+        }
+
+      );
+
+    }).pipe(mergeAll());
 
   }
 
