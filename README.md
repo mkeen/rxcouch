@@ -1,8 +1,8 @@
 # RxCouch
 
-📀 **Universal**, 👑 **Reactive/Real Time**, 🛋 **Full CouchDB 2.X API Implementation**
+📀 **Universal**, 👑 **Reactive**, 🛋 **Full CouchDB 2.X API Implementation**
 
-Using all the best parts of ReactiveX to create a modern, real-time CouchDB client written in TypeScript that runs in the browser or under node.
+Using ReactiveX to create a modern, real-time CouchDB client written in TypeScript that runs in the browser or node.
 
 ## Prerequisites
 
@@ -13,15 +13,15 @@ RxJS 6+
 **NPM:** `npm install @mkeen/rxcouch`
 **Yarn:** `yarn install @mkeen/rxcouch`
 
-## Developer Documentation
+##Developer Documentation
 
-### Including RxCouch in Your Project
+###Including RxCouch in Your Project
 
 ```typescript
 import { CouchDB } from '@mkeen/rxcouch';
 ```
 
-### Initialize RxCouch for Connecting to a CouchDB Database
+###Initialize RxCouch for Connecting to a CouchDB Database
 
 ```typescript
 const couchDbConnection = new CouchDB(
@@ -31,7 +31,7 @@ const couchDbConnection = new CouchDB(
 );
 ```
 
-### Basic Configuration Options
+###Basic Configuration Options
 
 CouchDB is initialized with: `(RxCouchConfig, AuthorizationBehavior?, Observable<CouchDBCredentials>?)`
 
@@ -42,7 +42,7 @@ An `RxCouchConfig`, when passed into the CouchDB initializer, must have a `dbNam
 `ssl`: false
 `trackChanges`: true
 
-### Configuring Authentication
+###Configuring Authentication
 
 CouchDB supports [Basic Authentication as well as Cookie Authentication](https://docs.couchdb.org/en/stable/api/server/authn.html). This library only supports Cookie Authentication.
 
@@ -71,7 +71,7 @@ The big detail to note here is that the final argument passed to the CouchDB ini
 
 Since we're hardcoding the credentials `Observable` argument, the above example will result in an authentication attempt being made to the speficied CouchDB host (without using HTTPS) immediately.
 
-### Getting the Current Session
+###Getting the Current Session
 
 To determine which user (if any) is currently logged into CouchDB, you can call `session`, which will call out to CouchDB, and [ask for the latest session information](https://docs.couchdb.org/en/stable/api/server/authn.html#get--_session) from the server. `session` returns an `Observable` that emits a `CouchDBSession`.
 
@@ -84,11 +84,11 @@ couchDbConnection.session().subscribe((session: CouchDBSession) => {
 
 If you're using CouchDB to authenticate users in your application, you could call `session` when your app is initialized in order to determine if a user is logged in, and if so, any other information associated with that user.
 
-### Dealing with Documents
+###Dealing with Documents
 
-Whether authentication is used or not, a document is always returned to you by RxCouch in the form a `BehaviorSubject` which provides a two-way, real-time data binding to the document that lives in CouchDB.
+Whether authentication is used or not, a document is always returned to you by RxCouch in the form a `BehaviorSubject` which provides two-way, real-time data binding to the document that lives in CouchDB.
 
-#### Subscribe to Any Document in Real Time
+####Subscribe to Any Document in Real Time
 
 ```typescript
 interface Person {
@@ -109,13 +109,13 @@ myDocument.subscribe((document: Person) => {
 //...
 ```
 
-###### Result
+######Result
 
 ```typescript
 Most recent person: { _id: '7782f0743bee05005a548ba8af00205b', _rev: '10-bcaab49ec87c678686984d1c4873cd3e', name: 'Mike' }
 ```
 
-#### Update The Same Document in Real Time
+####Update The Same Document in Real Time
 
 ```typescript
 //...
@@ -134,7 +134,7 @@ myDocument.next(myCompletelyChangedDocument);
 Most recent person: { _id: '7782f0743bee05005a548ba8af00205b', _rev: '11-bf3003bb5f63b875db4284f319a0b918', name: 'some new name here', email:  'mwk@mikekeen.com', phone: '323-209-5336'}
 ```
 
-### Creating And Modifying Documents
+###Creating And Modifying Documents
 
 In the above example, a document is fetched by `_id`. If a string is passed to `doc`, it will be assumed that it is a document id that you want to search the database for. If an object is passed in, one of two things will happen:
 
@@ -212,7 +212,7 @@ No matter how you fetch or modify a document, there's only ever one real subscri
 
 RxCouch exposes `find` from `CouchDB` that uses [CouchDB Selector Syntax](https://docs.couchdb.org/en/2.2.0/api/database/find.html#selector-syntax) to make queries, and returns a list of matching documents. Documents returned are not `BehaviorSubject`s.
 
-### Get a List of Documents That Match a Query and Log Them
+###Get a List of Documents That Match a Query and Log Them
 
 Call `find` with `(CouchDBFindQuery)`.
 
@@ -251,7 +251,7 @@ couchDbConnection.find({
 Matching people: [{ "_id": "7782f0743bee05005a548ba8af00b4f5", "_rev": "3-8da970f593132c80ccee83fc4708ce33", "name": "tracy Modified!", "email": "tracy@company-modified-again.com", "phone": "323-209-5336" }]
 ```
 
-#### Get Real-Time Feeds for Found Documents
+####Get Real-Time Feeds for Found Documents
 
 ```typescript
 //...
@@ -281,6 +281,16 @@ couchDbConnection.find({
 Latest person: { "_id": "7782f0743bee05005a548ba8af00b4f5", "_rev": "3-8da970f593132c80ccee83fc4708ce33", "name": "tracy Modified!", "email": "tracy@company-modified-again.com", "phone": "323-209-5336" }
 ```
 
+## 🚂 Under the Hood
 
+The main design feature of RxCouch is two way data binding between your JavaScript application instance and your CouchDB documents.
 
- 🇺🇸 Made in U.S.A.  💾 Open Source (ISC License, Always Attribute Author)
+### The CouchDB Changes Feed & Document Subscriptions
+
+An instance of RxCouch's `CouchDB` class will open a real-time connection to CouchDB's change feed, and send a dynamically generated list of document ids in the body of a POST request. Any time this list changes (which happens as the instance's `doc` method is called and unique documents become known), the connection is closed, and a new one opened. This way, the changes subscription is always for a specific list of documents, and nothing more.
+
+### RxJS and Memory Management
+
+When using ReactiveX, it's important that subscriptions are closed when their subscribers go out of scope, or are simply no longer needed. All subscriptions internal to RxCouch are well managed and will not cause memory issues.
+
+💾 Open Source (ISC License, Always Attribute Author)  🇺🇸 Made in U.S.A.
