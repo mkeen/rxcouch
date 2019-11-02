@@ -78,7 +78,7 @@ To determine which user (if any) is currently logged into CouchDB, you can call 
 ```typescript
 //...
 couchDbConnection.session().subscribe((session: CouchDBSession) => {
-  console.log("Currently session info: ", session);
+  console.log('Currently session info: ', session);
 });
 ```
 
@@ -103,7 +103,7 @@ interface Person {
 const myDocument: BehaviorSubject<Person> = couchDbConnection.doc('778...05b');
 
 myDocument.subscribe((document: Person) => {
-  console.log("Most recent person: ", document);
+  console.log('Most recent person: ', document);
 });
 
 //...
@@ -112,7 +112,7 @@ myDocument.subscribe((document: Person) => {
 ###### Result
 
 ```typescript
-Most recent person: { _id: '7782f0743bee05005a548ba8af00205b', _rev: '10-bcaab49ec87c678686984d1c4873cd3e', name: 'Mike' }
+Most recent person: { _id: "7782f0743bee05005a548ba8af00205b", _rev: "10-bcaab49ec87c678686984d1c4873cd3e", name: 'Mike" }
 ```
 
 #### Update The Same Document in Real Time
@@ -131,7 +131,7 @@ myDocument.next(myCompletelyChangedDocument);
 ###### Result
 
 ```typescript
-Most recent person: { _id: '7782f0743bee05005a548ba8af00205b', _rev: '11-bf3003bb5f63b875db4284f319a0b918', name: 'some new name here', email:  'mwk@mikekeen.com', phone: '323-209-5336'}
+Most recent person: { _id: "7782f0743bee05005a548ba8af00205b", _rev: "11-bf3003bb5f63b875db4284f319a0b918", name: "some new name here", email:  "mwk@mikekeen.com", phone: "323-209-5336"}
 ```
 
 ### Creating And Modifying Documents
@@ -152,7 +152,7 @@ const newlyCreatedPerson = couchDbConnection.doc({
   email: 'tracy@company.com',
   phone: '323-209-5336'
 }).subscribe((doc: Person) => {
-  console.log("Person Feed: ", doc);
+  console.log('Person Feed: ', doc);
 });
 ```
 
@@ -177,7 +177,7 @@ couchDbConnection.doc({
   email: 'tracy@company-modified.com',
   phone: '323-209-5336'
 }).subscribe((doc) => {
-  console.log("Document Modified: ", doc);
+  console.log('Document Modified: ', doc);
 })
 ```
 
@@ -241,7 +241,7 @@ couchDbConnection.find({
   }
   
 }).subscribe((matchingPeople: Person[]) => {
-  console.log("Matching people: ", matchingPeople);
+  console.log('Matching people: ', matchingPeople);
 });
 ```
 
