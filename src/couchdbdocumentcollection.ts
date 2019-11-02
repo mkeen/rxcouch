@@ -1,5 +1,4 @@
-import { BehaviorSubject, Observable, Observer, of } from 'rxjs';
-import { take, mergeAll, map } from 'rxjs/operators';
+import { BehaviorSubject } from 'rxjs';
 import { CouchDBDocument, CouchDBDocumentIndex, CouchDBHashIndex } from './types';
 import { sha256 } from 'js-sha256';
 import * as _ from "lodash";
@@ -68,7 +67,7 @@ export class CouchDBDocumentCollection {
     return this.documents[document_id] !== undefined;
   }
 
-  public isValidCouchDBDocument(entity: any): boolean {
+  public isValidCouchDBDocument(entity: any): boolean { // todo: rename: this determines if entity is a document actually stored in the db
     return '_id' in entity && '_rev' in entity;
   }
 
@@ -79,9 +78,12 @@ export class CouchDBDocumentCollection {
   public add(document: CouchDBDocument): void {
     this.documents[document._id] = new BehaviorSubject<CouchDBDocument>(document);
     this.ids.next(
-      _.sortBy(
+      _.sortBy( // todo: I don't think this sort is needed
         _.union(this.ids.value, [document._id])
-      ));
+      )
+      
+    );
+
   }
 
 }

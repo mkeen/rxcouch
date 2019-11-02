@@ -66,6 +66,8 @@ export class CouchDB {
     public auth: AuthorizationBehavior = AuthorizationBehavior.open,
     public credentials: Observable<CouchDBCredentials> | null = null
   ) {
+    rxCouchConfig = Object.assign({}, rxCouchConfig);
+
     this.databaseName =
       new BehaviorSubject<string>(rxCouchConfig.dbName);
 
@@ -299,7 +301,7 @@ export class CouchDB {
           observer.next(this.documents.doc(document));
           this.listenForLocalChanges(document);
         } else {
-          this.getDocument(document, observer)
+          this.getDocument(document, observer);
         }
 
       } else {
@@ -438,8 +440,8 @@ export class CouchDB {
 
   private getDocument(
     documentId: string,
-    observer: Observer<BehaviorSubject<CouchDBDocument>>
-  ): void {
+    observer: Observer<BehaviorSubject<CouchDBDocument>> // make this api better. having to pass in an observable is weird. would
+  ): void {                                              // be better if this returned an observable that emitted the behaviorsubject
     this.config().pipe(
       take(1),
       map((config: WatcherConfig) => {
@@ -461,6 +463,7 @@ export class CouchDB {
         observer.next(this.documents.doc(doc));
         this.listenForLocalChanges(doc._id);
       } else {
+        // todo. use partial document as a find query and return result IF there is exactly one result. otherwise, error
         observer.error(doc)
       }
 
@@ -621,10 +624,10 @@ export class CouchDB {
       httpOptions.body = body;
     }
 
-    if (config[COOKIE] !== null) { // Todo: fix.. This null check should not be required.
-      if ((<string>config[COOKIE]).length && typeof process === 'object') {
+    if (config[COOKIE] !== null) {
+      if ((<string>config[COOKIE]).length && typeof process === 'object') { // Todo: Type hint and length check really necessary?
         httpOptions['headers'] = {
-          'Cookie': this.cookieForRequestHeader((<string>config[COOKIE]))
+          'Cookie': this.cookieForRequestHeader((<string>config[COOKIE])) // Todo: Why is type hint needed when inside the null check?
         }
 
       }
@@ -647,11 +650,11 @@ export class CouchDB {
   }
 
   private listenForLocalChanges(doc_id: string): void {
-    if (this.appDocChanges[doc_id] === undefined) {
+    if (this.appDocChanges[doc_id] === undefined) { // kind of a gross way to check if we're already listening. shouldn't be necessary.
       this.appDocChanges[doc_id] = this.documents.doc(doc_id).pipe(skip(1)).subscribe((changedDoc: any) => {
         if (doc_id !== changedDoc._id) {
-          console.warn('document mismatch. change ignored.');
-          return;
+          console.warn('document mismatch. change ignored.'); // this is only here because its possible to change a doc id.
+          return;                                             // and i havent even attempted to handle that case yet.
         }
 
         if (this.documents.changed(changedDoc)) {
