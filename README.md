@@ -7,6 +7,7 @@ Using ReactiveX to create a modern, real-time CouchDB client written in TypeScri
 ## Prerequisites
 
 RxJS 6+
+CouchDB 2.3+
 
 ## Installation
 
