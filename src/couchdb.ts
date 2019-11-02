@@ -151,7 +151,7 @@ export class CouchDB {
         } else {
           if (this.loginAttemptMade.value === false) {
             this.loginAttemptMade.next(true);
-            this.getSession().pipe(take(1)).subscribe(
+            this.session().pipe(take(1)).subscribe(
               (session: CouchDBSession) => {
                 const { ok, userCtx } = session;
                 const authenticated = !!userCtx.name;
@@ -347,7 +347,7 @@ export class CouchDB {
 
   }
 
-  public getSession(): Observable<CouchDBSession> {
+  public session(): Observable<CouchDBSession> {
     return Observable.create((observer: Observer<CouchDBSession>) => {
       this.config().pipe(take(1)).subscribe((config: WatcherConfig) => {
         this.httpRequest<HttpResponseWithHeaders<CouchDBSession>>(
