@@ -293,4 +293,4 @@ An instance of RxCouch's `CouchDB` class will open a real-time connection to Cou
 
 When using ReactiveX, it's important that subscriptions are closed when their subscribers go out of scope, or are simply no longer needed. All subscriptions internal to RxCouch are well managed and will not cause memory issues.
 
-💾 Open Source (ISC License, Always Attribute Author)  🇺🇸 Made in U.S.A.
+🇺🇸
