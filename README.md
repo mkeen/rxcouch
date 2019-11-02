@@ -290,8 +290,18 @@ The main design feature of RxCouch is two way data binding between your JavaScri
 
 An instance of RxCouch's `CouchDB` class will open a real-time connection to CouchDB's change feed, and send a dynamically generated list of document ids in the body of a POST request. Any time this list changes (which happens as the instance's `doc` method is called and unique documents become known), the connection is closed, and a new one opened. This way, the changes subscription is always for a specific list of documents, and nothing more.
 
-### RxJS and Memory Management
+#### Document Tracking
 
-When using ReactiveX, it's important that subscriptions are closed when their subscribers go out of scope, or are simply no longer needed. All subscriptions internal to RxCouch are well managed and will not cause memory issues.
+Documents are cached and then tracked for changes. `CouchDBDocumentCollection` handles both caching and change tracking.
+
+##### Cache
+
+Instances of `CouchDB` have a method called `doc`. Any documents that flow through `doc` are cached in a `CouchDBDocumentCollection`. They can later be retrieved by _id in the form of a `BehaviorSubject` that supports two way binding. A hash of the document is indexed (by document id) for change tracking purposes.
+
+##### Change Tracking
+
+Before document changes are propagated either to or from a `BehaviorSubject` that represents a known document, the potentially changed document is hashed and compared against a previously indexed (by document id) hash of the document. If the hashes don't match, the document has changed, and it will be passed into the `next` method of the relavent indexed `BehaviorSubject`. Finally, the indexed hash entry for the document will be updated.
+
+### Thanks!
 
 🇺🇸
