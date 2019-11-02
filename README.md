@@ -1,6 +1,6 @@
 # RxCouch
 
-📀 **Universal**, 👑 **Reactive**, 🛋 **Full CouchDB 2.X API Implementation**
+📀 **Universal**, 👑 **Reactive**, 🛋 **Cozy**
 
 Using ReactiveX to create a modern, real-time CouchDB client written in TypeScript that runs in the browser or node.
 
