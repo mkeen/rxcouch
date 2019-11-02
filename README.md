@@ -1,76 +1,286 @@
-# 🛋 RxCouch
-Read, Write and Subscribe to documents in CouchDB in real-time with impunity. A document is a `BehaviorSubject` and will automatically be updated from the database's `_changes` feed. Edits via calling `.next` are seamless and propagate across your local application, as well as other subscribers' applications instantly.
-  
-### Why?
-CouchDB is a fantastic database for powering real-time user interfaces... but to truly bind to a document in real-time, there is a bit of work required around consuming the change feed API in an effective and scalable manner. RxCouch makes it so that you only have to reason about documents -- they'll be updated automatically for you -- and you don't have to care about the change feed particulars.
+# RxCouch
 
-### Features
+📀 **Universal**, 👑 **Reactive/Real Time**, 🛋 **Full CouchDB 2.X API Implementation**
 
-📀 **Universal** -- Works on both NodeJS and Browser  
+Using all the best parts of ReactiveX to create a modern, real-time CouchDB client written in TypeScript that runs in the browser or under node.
 
-🔐 **Authentication** -- Supports wide open CouchDB databases (admin party) as well as protected databases.
+## Prerequisites
 
-📡 **Automatic Change Notification** -- RxCouch keeps track of all documents that it touches. By default, RxCouch is always subscribed to CouchDB's `_changes` feed and utilizes the `_doc_ids` filter to ensure you only get the changes to documents you've fetched or created in the current scope of your user interface.
-   
-💾 **Automatic Document Creation** -- If you pass in a document, without an `_id` field, RxCouch will automatically create it in the database and return a `BehaviorSubject`.
-   
-📝 **Automatic Document Editing** -- If you pass in a complete document that doesn't match a previously received version of a known document (one that the current scope of your user interface has fetched or created), the new version will be sent to couchdb and saved. If other users of your application are watching this document, they will receive the new version of the document in real-time.  
+RxJS 6+
 
-😎 **Automatic Document Fetching** -- If you subscribe to a document `_id` that RxCouch hasn't seen yet, it will be automatically and transparently fetched, before being injected into a `BehaviorSubject` and returned.
-  
-### Install
-`npm install @mkeen/rxcouch`  
-https://www.npmjs.com/package/@mkeen/rxcouch
+##Installation
 
-### Usage
-`CouchDB` is the class you will interact with most. An instance of `CouchDB` provides the `doc` method, which accepts as an argument any document that conforms to `CouchDBDocument` or `CouchDBPreDocument` (a way of expressing a document that isn't persisted yet), or a Document `_id` -- in the form of a `string`. A call to `.doc` returns a `BehaviorSubject`.
-  
-All calls to `doc` will result in the relevent doc `_id` being added to the `_changes` watcher's  `_doc_ids` filter. All `doc` `BehaviorSubject`s will be kept up to date in real time as the documents they represent are modified in the database.
-  
-Passing a modified version of the document `.next` on any `BehaviorSubject` returned from `doc` will result in any modifications being immediately written to the database.
+**NPM:** `npm install @mkeen/rxcouch`
+**Yarn:** `yarn install @mkeen/rxcouch`
 
-### Example
+##Developer Documentation
+
+###Including RxCouch in Your Project
 
 ```typescript
-import { CouchDB,                                               // Base class you'll interact with
-         AuthorizationBehavior,                                 // Toggle open vs cookie login
-         CouchDBCredentials                                     // Credentials (only required for cookie)
-} from '@mkeen/rxcouch';
+import { CouchDB } from '@mkeen/rxcouch';
+```
 
-interface Person implements CouchDBDocument {                   // RxCouch is written in TypeScript and
-  name: String;                                                 // fully supports typed docs. Define an
-  email: String;                                                // interface and then have at it. Or just
-}                                                               // use `any` types
+###Initialize RxCouch for Connecting to a CouchDB Database
 
-// Connect to a CouchDB Database
-const couchDBInstance = new CouchDB({
-      dbName: "mydbnamehere",
-      host: "localhost"
-    }, AuthorizationBehavior.cookie,                            
-      of({username: 'username',                                 // In this example, the username and password
-      password: 'password'}}                                    // are hardcoded. But by using an observable,
-    );                                                          // the password can be propmted for and 
-                                                                // supplied interactively by a UI.
-    
-// Get the latest version of a known document.
-const couchDBInstance.doc('4b75030702ae88064daf8182ca00364e')   // Pass in a document id of a document stored in
-  .subscribe((document: Person) => {                            // the db and it will be fetched, returned and
-    // It's a free country                                      // subscribed to.
+```typescript
+const couchDbConnection = new CouchDB(
+  {
+    dbName: 'people',
   }
+);
+```
 
+###Basic Configuration Options
+
+CouchDB is initialized with: `(RxCouchConfig, AuthorizationBehavior?, Observable<CouchDBCredentials>?)`
+
+An `RxCouchConfig`, when passed into the CouchDB initializer, must have a `dbName` property at minimum. It can also have optional properties, which have the following default values:
+
+`host`: localhost
+`port`: 5984
+`ssl`: false
+`trackChanges`: true
+
+###Configuring Authentication
+
+CouchDB supports [Basic Authentication as well as Cookie Authentication](https://docs.couchdb.org/en/stable/api/server/authn.html). This library only supports Cookie Authentication.
+
+Let's take a look at how to initialize RxCouch for connecting to a CouchDB database that has Authentication configured.
+
+```typescript
+import { of } from 'rxjs';
+import { CouchDB,
+         AuthorizationBehavior } from '@mkeen/rxcouch';
+
+const couchDbConnection = new CouchDB(
+  {
+    dbName: 'people',
+    host: 'localhost'
+  },
+  AuthorizationBehavior.cookie,
+  of({username: 'username', password: 'password'}})
 );
 
-// Create, store, and subscribe to a new person.
-const new_person: Person = {
-  name: 'Chelsei',
-  email: 'c.san@bytewave.co'
+//...
+```
+
+At first glance this is obviously different than the bare-bones initialization example above. We are using the `AuthorizationBehavior.cookie` enumerated type for readability's sake.
+
+The big detail to note here is that the final argument passed to the CouchDB initializer is an `Observable`. In this example it's hardcoded. In a real-world implementation, you'll create an `Observable` that emits (for example) when a user submits a login form and pass that `Observable` into the initializer.
+
+Since we're hardcoding the credentials `Observable` argument, the above example will result in an authentication attempt being made to the speficied CouchDB host (without using HTTPS) immediately.
+
+###Getting the Current Session
+
+To determine which user (if any) is currently logged into CouchDB, you can call `session`, which will call out to CouchDB, and [ask for the latest session information](https://docs.couchdb.org/en/stable/api/server/authn.html#get--_session) from the server. `session` returns an `Observable` that emits a `CouchDBSession`.
+
+```typescript
+//...
+couchDbConnection.session().subscribe((session: CouchDBSession) => {
+  console.log("Currently session info: ", session);
+});
+```
+
+If you're using CouchDB to authenticate users in your application, you could call `session` when your app is initialized in order to determine if a user is logged in, and if so, any other information associated with that user.
+
+###Dealing with Documents
+
+Whether authentication is used or not, a document is always returned to you by RxCouch in the form a `BehaviorSubject` which provides a two-way, real-time data binding to the document that lives in CouchDB.
+
+####Subscribe to Any Document in Real Time
+
+```typescript
+interface Person {
+  _id: string;
+  _rev: string;
+  
+  name: string;
+  email?: string;
+  phone?: string;
 }
 
-const couchDBInstance.doc(new_person)                          // Pass in a document without an _id field and a
-  .subscribe((document: Person) => {                           // new document will be automatically stored, 
-    // It's a free country                                     // returned and subscribed to.
+const myDocument: BehaviorSubject<Person> = couchDbConnection.doc('778...05b');
+
+myDocument.subscribe((document: Person) => {
+  console.log("Most recent person: ", document);
+});
+
+//...
+```
+
+######Result
+
+```typescript
+Most recent person: { _id: '7782f0743bee05005a548ba8af00205b', _rev: '10-bcaab49ec87c678686984d1c4873cd3e', name: 'Mike' }
+```
+
+####Update The Same Document in Real Time
+
+```typescript
+//...
+const myCompletelyChangedDocument = {
+  name: 'some new name here',
+  email: 'mwk@mikekeen.com',
+  phone: '323-209-5336'
+}
+
+myDocument.next(myCompletelyChangedDocument);
+```
+
+###### Result
+
+```typescript
+Most recent person: { _id: '7782f0743bee05005a548ba8af00205b', _rev: '11-bf3003bb5f63b875db4284f319a0b918', name: 'some new name here', email:  'mwk@mikekeen.com', phone: '323-209-5336'}
+```
+
+###Creating And Modifying Documents
+
+In the above example, a document is fetched by `_id`. If a string is passed to `doc`, it will be assumed that it is a document id that you want to search the database for. If an object is passed in, one of two things will happen:
+
+1. If the object contains both an `_id` and `_rev` field, the document that matches the `_id` will be updated in CouchDB.
+2. If the object does not contain both an `_id` and a `_rev` field, then a new document will be created based on the object passed.
+
+Whichever of the above happens, `doc` returns a `BehaviorSubject` that will reflect all future changes to the relevant document.
+
+#### Create a New Document
+
+```typescript
+//...
+const newlyCreatedPerson = couchDbConnection.doc({
+  name: 'tracy',
+  email: 'tracy@company.com',
+  phone: '323-209-5336'
+}).subscribe((doc: Person) => {
+  console.log("Person Feed: ", doc);
+});
+```
+
+###### Result
+
+```typescript
+Person Feed: {"_id": "7782f0743bee05005a548ba8af00b4f5", "_rev": "1-2fee21d51258845545ea6506ab138919", "name": "tracy", "email": "tracy@company.com", "phone": "323-209-5336"}
+```
+
+#### Modify an Existing Document
+
+There are two ways to modify a document that already exists in CouchDB.
+
+One way, is to simply pass a modified version of the existing document to `doc` like in the example below:
+
+```typescript
+//...
+couchDbConnection.doc({
+  _id: '7782f0743bee05005a548ba8af00b4f5',
+  _rev: '1-2fee21d51258845545ea6506ab138919',
+  name: 'tracy',
+  email: 'tracy@company-modified.com',
+  phone: '323-209-5336'
+}).subscribe((doc) => {
+  console.log("Document Modified: ", doc);
+})
+```
+
+###### Result
+
+```typescript
+Document Modified: { "_id": "7782f0743bee05005a548ba8af00b4f5", "_rev": "2-e654adf15f28b99f26ae1f0dbe8e7c36", "name": "tracy", "email": "tracy@company-modified.com", "phone": "323-209-5336" }
+
+Person Feed: {"_id": "7782f0743bee05005a548ba8af00b4f5", "_rev": "2-e654adf15f28b99f26ae1f0dbe8e7c36", "name": "tracy", "email": "tracy@company-modified.com", "phone": "323-209-5336" }
+```
+
+Another way to modify a document that already exists in CouchDB is to just call `next` on an already fetched document's `BehaviorSubject`.
+
+```typescript
+//..
+newlyCreatedPerson.next({
+  name: 'tracy Modified!',
+  email: 'tracy@company-modified-again.com',
+  phone: '323-209-5336'
+});
+```
+
+###### Result
+
+```typescript
+Person Feed: {"_id": "7782f0743bee05005a548ba8af00b4f5", "_rev": "3-8da970f593132c80ccee83fc4708ce33", "name": "tracy Modified!", "email": "tracy@company-modified-again.com", "phone": "323-209-5336" }
+```
+
+No matter how you fetch or modify a document, there's only ever one real subscription to the document itself. Once a document is known by RxCouch, it's possible to subscribe to it from many different places. Any of those subscriptions (which are `BehaviorSubject`'s) can be used to modify the document, and new versions of the document, regardless if they originate locally or remotely, will propagate to all subscribers.
+
+###Finding Documents With a Query
+
+RxCouch exposes `find` from `CouchDB` that uses [CouchDB Selector Syntax](https://docs.couchdb.org/en/2.2.0/api/database/find.html#selector-syntax) to make queries, and returns a list of matching documents. Documents returned are not `BehaviorSubject`s.
+
+###Get a List of Documents That Match a Query and Log Them
+
+Call `find` with `(CouchDBFindQuery)`.
+
+An `CouchDBFindQuery`, when passed into `find`, should conform to [CouchDB Selector Syntax](https://docs.couchdb.org/en/2.2.0/api/database/find.html#selector-syntax). It can have the following optional properties of the following types:
+
+`selector: CouchDBFindSelector`
+`limit: number`
+`skip: number`
+`sort: CouchDBFindSort[]`
+`fields: string[]`
+`use_index: string | []`
+`r: number`
+`bookmark: string`
+`update: boolean`
+`stable: boolean`
+`stale: string`
+`execution_stats: boolean`
+
+A call to `find` will return an `Observable` that will emit a list of documents that match the passed query.
+
+```typescript
+//...
+couchDbConnection.find({
+  selector: {
+    name: 'tracy'
+  }
+  
+}).subscribe((matchingPeople: Person[]) => {
+  console.log("Matching people: ", matchingPeople);
+});
+```
+
+###### Result
+
+```typescript
+Matching people: [{ "_id": "7782f0743bee05005a548ba8af00b4f5", "_rev": "3-8da970f593132c80ccee83fc4708ce33", "name": "tracy Modified!", "email": "tracy@company-modified-again.com", "phone": "323-209-5336" }]
+```
+
+####Get Real-Time Feeds for Found Documents
+
+```typescript
+//...
+couchDbConnection.find({
+  selector: {
+    name: 'some new name here'
+  }
+  
+}).subscribe((matchingPeople: Person[]) => {
+  const documentFeeds = matchingPeople.map((person: Person) => {
+    return couchDbConnection.doc(matchingPeople)
   });
-```                                       
+  
+  documentFeeds.forEach((feed) => {
+    feed.subscribe(
+      (document: Person) => console.log('Latest person: ', document)
+    );
+    
+  });
+  
+});
+```
+
+###### Result
+
+```typescript
+Latest person: { "_id": "7782f0743bee05005a548ba8af00b4f5", "_rev": "3-8da970f593132c80ccee83fc4708ce33", "name": "tracy Modified!", "email": "tracy@company-modified-again.com", "phone": "323-209-5336" }
+```
 
 
-🇺🇸
+
+ 🇺🇸 Made in U.S.A.  💾 Open Source (ISC License, Always Attribute Author)
