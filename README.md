@@ -8,20 +8,20 @@ Using ReactiveX to create a modern, real-time CouchDB client written in TypeScri
 
 RxJS 6+
 
-##Installation
+## Installation
 
 **NPM:** `npm install @mkeen/rxcouch`
 **Yarn:** `yarn install @mkeen/rxcouch`
 
-##Developer Documentation
+## Developer Documentation
 
-###Including RxCouch in Your Project
+### Including RxCouch in Your Project
 
 ```typescript
 import { CouchDB } from '@mkeen/rxcouch';
 ```
 
-###Initialize RxCouch for Connecting to a CouchDB Database
+### Initialize RxCouch for Connecting to a CouchDB Database
 
 ```typescript
 const couchDbConnection = new CouchDB(
