@@ -302,6 +302,4 @@ Instances of `CouchDB` have a method called `doc`. Any documents that flow throu
 
 Before document changes are propagated either to or from a `BehaviorSubject` that represents a known document, the potentially changed document is hashed and compared against a previously indexed (by document id) hash of the document. If the hashes don't match, the document has changed, and it will be passed into the `next` method of the relavent indexed `BehaviorSubject`. Finally, the indexed hash entry for the document will be updated.
 
-### Thanks!
-
 🇺🇸
