@@ -6,12 +6,12 @@ Using ReactiveX to create a modern, real-time CouchDB client written in TypeScri
 
 ## Prerequisites
 
-RxJS 6+
+RxJS 6+  
 CouchDB 2.3+
 
 ## Installation
 
-**NPM:** `npm install @mkeen/rxcouch`
+**NPM:** `npm install @mkeen/rxcouch`  
 **Yarn:** `yarn install @mkeen/rxcouch`
 
 ## Developer Documentation
@@ -38,9 +38,9 @@ CouchDB is initialized with: `(RxCouchConfig, AuthorizationBehavior?, Observable
 
 An `RxCouchConfig`, when passed into the CouchDB initializer, must have a `dbName` property at minimum. It can also have optional properties, which have the following default values:
 
-`host`: localhost
-`port`: 5984
-`ssl`: false
+`host`: localhost  
+`port`: 5984  
+`ssl`: false  
 `trackChanges`: true
 
 ### Configuring Authentication
