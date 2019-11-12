@@ -93,9 +93,6 @@ Whether authentication is used or not, a document is always returned to you by R
 
 ```typescript
 interface Person {
-  _id: string;
-  _rev: string;
-  
   name: string;
   email?: string;
   phone?: string;
