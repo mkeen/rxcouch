@@ -2,7 +2,7 @@
 
 📀 **Universal** 👑 **Reactive** 🛋 **Cozy**
 
-Using ReactiveX to create a modern, real-time CouchDB client written in TypeScript that runs in the browser or node.
+Using ReactiveX to create a modern, real-time CouchDB client written in TypeScript that runs in the browser or node. The change feed is handled automatically. Two way data bindings by way of `BehaviorSubject`.
 
 ## Prerequisites
 
