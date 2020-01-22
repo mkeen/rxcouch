@@ -15,6 +15,7 @@ export class CouchDBDocumentCollection {
     }
 
     let docCopy = JSON.parse(JSON.stringify(document));
+    delete docCopy._rev;
 
     const snapshot = this.snapshots[docCopy._id];
     if (snapshot === undefined) {
