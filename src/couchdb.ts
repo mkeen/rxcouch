@@ -307,8 +307,6 @@ export class CouchDB {
       } else {
         if (this.documents.changed(<CouchDBDocument>document)) {
           this.saveDocument(document).subscribe((doc) => {
-            document._rev = doc.rev;
-            this.documents.doc(<CouchDBDocument>document);
             observer.next(this.doc(document._id));
           });
             
