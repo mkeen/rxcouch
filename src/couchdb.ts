@@ -87,9 +87,8 @@ export class CouchDB {
       .pipe(
         distinctUntilChanged(),
         debounceTime(0),
-      ).subscribe((config: WatcherConfig) => {(config: WatcherConfig) => {
+      ).subscribe((config: WatcherConfig) => {
         const idsEmpty = config[IDS].length === 0;
-
         if(idsEmpty || !config[TRACK_CHANGES]) {
           this.closeChangeFeed();
         } else {
@@ -101,7 +100,7 @@ export class CouchDB {
 
       }
 
-    });
+    );
 
     if (this.credentials) {
       this.credentials.subscribe((couchDbCreds: CouchDBCredentials) => { // memory leak.. need to unsub

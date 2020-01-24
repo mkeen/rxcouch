@@ -1,6 +1,6 @@
 {
   "name": "@mkeen/rxcouch",
-  "version": "3.6.1",
+  "version": "3.7.0",
   "description": "Real Time RxJs Based CouchDB Client",
   "keywords": [
     "couchdb-client",
@@ -28,7 +28,7 @@
     "@mkeen/rxhttp": "1.11.0",
     "js-sha256": "^0.9.0",
     "lodash": "^4.17.15",
-    "rxjs": "^6.5.3"
+    "rxjs": "^6.5.4"
   },
   "devDependencies": {
     "@types/lodash": "^4.14.142",
