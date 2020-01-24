@@ -1,5 +1,5 @@
 import { Observer, Observable, Subject, BehaviorSubject, combineLatest, of } from 'rxjs';
-import { distinctUntilChanged, take, map, mergeAll, tap, skip, takeUntil, debounceTime } from 'rxjs/operators';
+import { distinctUntilChanged, take, map, mergeAll, tap, skip, takeUntil, debounceTime, filter } from 'rxjs/operators';
 
 import {
   FetchBehavior,
@@ -305,11 +305,13 @@ export class CouchDB {
         }
 
       } else {
-        if (this.documents.changed(<CouchDBDocument>document)) {
+        if (this.documents.changed(document)) {
           this.saveDocument(document).subscribe((doc) => {
-            observer.next(this.doc(document._id));
+            document._rev = doc.rev;
+            document._id = doc.id;
+            observer.next(this.documents.doc(<CouchDBDocument>document));
           });
-            
+          
         } else {
           observer.next(this.documents.doc(document._id));
         }

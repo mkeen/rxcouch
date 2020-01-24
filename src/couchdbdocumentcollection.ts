@@ -1,5 +1,5 @@
 import { BehaviorSubject } from 'rxjs';
-import { CouchDBDocument, CouchDBDocumentIndex, CouchDBHashIndex } from './types';
+import { CouchDBDocument, CouchDBDocumentIndex, CouchDBHashIndex, CouchDBPreDocument } from './types';
 import { sha256 } from 'js-sha256';
 import * as _ from "lodash";
 
@@ -8,15 +8,20 @@ export class CouchDBDocumentCollection {
   private documents: CouchDBDocumentIndex = {};
   private snapshots: CouchDBHashIndex = {};
 
-  public changed(document: CouchDBDocument): boolean {
+  public changed(document: CouchDBDocument | CouchDBPreDocument): boolean {
     // todo, dont let undefined get this far
     if (!document) {
       return false;
     }
 
-    let docCopy = JSON.parse(JSON.stringify(document));
-    delete docCopy._rev;
+    const docCopy = JSON.parse(JSON.stringify(document));
 
+    if (this.isPreDocument(docCopy)) {
+      return true;
+    }
+
+    delete docCopy._rev;
+    
     const snapshot = this.snapshots[docCopy._id];
     if (snapshot === undefined) {
       return true;
@@ -29,9 +34,10 @@ export class CouchDBDocumentCollection {
   }
 
   public snapshot(document: CouchDBDocument) {
-    let docCopy = JSON.parse(JSON.stringify(document));
+    const docCopy = JSON.parse(JSON.stringify(document));
+    delete docCopy._rev;
 
-    return this.snapshots[document._id] = sha256(
+    return this.snapshots[docCopy._id] = sha256(
       JSON.stringify(docCopy)
     );
 
