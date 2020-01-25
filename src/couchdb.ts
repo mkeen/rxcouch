@@ -91,11 +91,8 @@ export class CouchDB {
         const idsEmpty = config[IDS].length === 0;
         if(idsEmpty || !config[TRACK_CHANGES]) {
           this.closeChangeFeed();
-        } else {
-          if(config[AUTHENTICATED]) {
-            this.configureChangeFeed(config);
-          }
-
+        } else if(config[AUTHENTICATED] || this.auth === AuthorizationBehavior.open) {
+          this.configureChangeFeed(config);
         }
 
       }
