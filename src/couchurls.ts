@@ -67,7 +67,7 @@ export namespace CouchUrls {
   }
 
   export function changes(config: WatcherConfig): string {
-    return `${prefix(config)}/${config[DATABASE_NAME]}/_changes`
+    return `${prefix(config)}/${config[DATABASE_NAME]}/_changes?include_docs=true&feed=continuous&since=now`;
   }
 
 }

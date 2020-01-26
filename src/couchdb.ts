@@ -349,9 +349,10 @@ export class CouchDB {
   }
 
   public changes(): Observable<CouchDBChangeFeed> {
-    return Observable.create((observer: Observer<CouchDBChangeFeed>) => {
+    // probably a memory leak
+    return Observable.create((observer: Observer<CouchDBChanges>) => {
       this.config().pipe(take(1)).subscribe((config: WatcherConfig) => {
-        this.httpRequestWithAuthRetry<CouchDBChangeFeed>(
+        this.httpRequestWithAuthRetry<CouchDBChanges>(
           config,
           CouchUrls.changes(
             config
@@ -360,7 +361,7 @@ export class CouchDB {
           FetchBehavior.stream,
           'GET'
         ).subscribe(
-          (response: CouchDBChangeFeed) => {
+          (response: CouchDBChanges) => {
             observer.next(response);
           }
 
