@@ -29,7 +29,8 @@ import {
   CouchDBFindResponse,
   CouchDBSession,
   CouchDBBasicResponse,
-  CouchDBUserContext
+  CouchDBUserContext,
+  CouchDBChangeFeed
 } from './types';
 
 import {
@@ -341,6 +342,30 @@ export class CouchDB {
 
       ).subscribe((documents: CouchDBDocument[]) => {
         observer.next(documents);
+      });
+
+    });
+
+  }
+
+  public changes(): Observable<CouchDBChangeFeed> {
+    return Observable.create((observer: Observer<CouchDBChangeFeed>) => {
+      this.config().pipe(take(1)).subscribe((config: WatcherConfig) => {
+        this.httpRequestWithAuthRetry<CouchDBChangeFeed>(
+          config,
+          CouchUrls.changes(
+            config
+          ),
+
+          FetchBehavior.stream,
+          'GET'
+        ).subscribe(
+          (response: CouchDBChangeFeed) => {
+            observer.next(response);
+          }
+
+        );
+
       });
 
     });

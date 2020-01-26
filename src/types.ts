@@ -71,12 +71,19 @@ export interface RxCouchConfig {
   trackChanges?: boolean;
 }
 
-export interface CouchDBChanges {
+export interface CouchDBChanges { // Refactor: rename to CouchDBChange
   id: string;
   doc: CouchDBDocument;
   changes: CouchDBChange[];
   last_seq?: string;
   seq?: string;
+  deleted?: boolean;
+}
+
+export interface CouchDBChangeFeed {           
+  last_seq: string;
+  pending: number;
+  results: CouchDBChanges[]; // CouchDBChange[] ^^^^
 }
 
 export interface CouchDBDocumentRevisionResponse {
