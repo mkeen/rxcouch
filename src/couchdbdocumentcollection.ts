@@ -91,4 +91,16 @@ export class CouchDBDocumentCollection {
 
   }
 
+  public remove(documentId: string): void {
+    var index = this.ids.value.indexOf(documentId);
+    if(index !== -1) {
+      this.ids.next(
+        this.ids.value.splice(index, 1)
+      );
+
+      delete this.documents[documentId];
+    }
+
+  }
+
 }

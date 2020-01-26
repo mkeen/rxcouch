@@ -188,3 +188,9 @@ export interface CouchDBFindResponse {
   execution_states: object;
   bookmark: string;
 }
+
+export interface CouchDBDeleteResponse {
+  id: string;
+  ok: boolean;
+  rev: string;
+}

@@ -30,7 +30,7 @@ import {
   CouchDBSession,
   CouchDBBasicResponse,
   CouchDBUserContext,
-  CouchDBChangeFeed
+  CouchDBDeleteResponse
 } from './types';
 
 import {
@@ -349,7 +349,6 @@ export class CouchDB {
   }
 
   public changes(): Observable<CouchDBChanges> {
-    // probably a memory leak
     return Observable.create((observer: Observer<CouchDBChanges>) => {
       this.config().pipe(take(1)).subscribe((config: WatcherConfig) => {
         this.httpRequestWithAuthRetry<CouchDBChanges>(
@@ -360,7 +359,7 @@ export class CouchDB {
 
           FetchBehavior.stream,
           'GET'
-        ).subscribe(
+        ).subscribe( // probably a memory leak
           (response: CouchDBChanges) => {
             observer.next(response);
           }
@@ -458,8 +457,49 @@ export class CouchDB {
 
   }
 
+  public delete(documentId: string) {
+    return Observable.create((observer: Observer<CouchDBDeleteResponse>): void => {
+      this.deleteDocument(documentId, observer);
+    });
+
+  }
+
   private extractResponse(httpResponse: HttpResponseWithHeaders<any>): any {
     return httpResponse.response;
+  }
+
+  private deleteDocument(
+    documentId: string,
+    observer: Observer<CouchDBDeleteResponse> // make this api better. having to pass in an observable is weird. would
+  ): void {                                              // be better if this returned an observable that emitted the behaviorsubject
+    this.config().pipe(
+      take(1),
+      map((config: WatcherConfig) => {
+        return this.httpRequestWithAuthRetry<CouchDBDeleteResponse>(
+          config,
+          CouchUrls.document(
+            config,
+            documentId,
+          ),
+
+          FetchBehavior.simple,
+          'DELETE'
+        );
+
+      }),
+      mergeAll()
+    ).subscribe((response: CouchDBDeleteResponse) => {
+      if(response.ok) {
+        this.stopListeningForLocalChanges(response.id);
+        this.documents.remove(response.id);
+        observer.next(response);
+      } else {
+        observer.error(response)
+      }
+
+      observer.complete();
+    });
+
   }
 
   private getDocument(
