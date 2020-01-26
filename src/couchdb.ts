@@ -348,7 +348,7 @@ export class CouchDB {
 
   }
 
-  public changes(): Observable<CouchDBChangeFeed> {
+  public changes(): Observable<CouchDBChanges> {
     // probably a memory leak
     return Observable.create((observer: Observer<CouchDBChanges>) => {
       this.config().pipe(take(1)).subscribe((config: WatcherConfig) => {
