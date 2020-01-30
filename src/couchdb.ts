@@ -621,44 +621,39 @@ export class CouchDB {
         if (errorMessage.errorCode === 401 || errorMessage.errorCode === 403) {
           this.authenticated.next(false);
           this.cookie.next(null);
-          this.authenticate().subscribe(
-            (authResponse: boolean) => {
-              if (authResponse) {
-                this.config().pipe(take(1)).subscribe((config: WatcherConfig) => {
-                  observer.next(
-                    this.httpRequestWithAuthRetry<T>(
-                      config,
-                      url,
-                      behavior,
-                      method,
-                      body
-                    )
+          this.authenticate().subscribe((authResponse: boolean) => {
+            if (authResponse) {
+              this.config().pipe(take(1)).subscribe((config: WatcherConfig) => {
+                observer.next(this.httpRequestWithAuthRetry<T>(
+                  config,
+                  url,
+                  behavior,
+                  method,
+                  body
+                ));
 
-                  );
+              });
 
-                });
+            } else {
+              observer.error(errorMessage);
+            }
 
-              } else {
-                observer.error(errorMessage);
-              }
+          },
 
-            },
+          (error) => { 
+            observer.error(error);
+          });
 
-            (error) => {
-              observer.error(error);
-            });
-
-          } else {
-            observer.error(errorMessage);
-          }
-
-        },
-
-        () => {
-          observer.complete();
+        } else {
+          observer.error(errorMessage);
         }
 
-      );
+      },
+
+      () => {
+        console.log("clozzzzzzz")
+        observer.complete();
+      });
 
     }).pipe(mergeAll());
 
