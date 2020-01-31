@@ -192,24 +192,18 @@ export class CouchDB {
   }
 
   public configureChangeFeed(config: WatcherConfig) {
-    this.changeFeedAbort.next(true);
     const requestUrl = CouchUrls.watch(config);
     const ids = JSON.stringify({
       'doc_ids': config[IDS]
     });
 
-    if (this.changeFeedHttpRequest) {
-      this.changeFeedHttpRequest.reconfigure(requestUrl, this.httpRequestOptions(config, 'POST', ids), FetchBehavior.stream);
-    } else {
-      this.changeFeedHttpRequest = this.httpRequest<CouchDBChanges>(
-        config,
-        requestUrl,
-        FetchBehavior.stream,
-        'POST',
-        ids
-      );
-
-    }
+    this.changeFeedHttpRequest = this.httpRequest<CouchDBChanges>(
+      config,
+      requestUrl,
+      FetchBehavior.stream,
+      'POST',
+      ids
+    );
 
     this.httpRequestWithAuthRetry<CouchDBChanges>(
       config,
@@ -237,13 +231,17 @@ export class CouchDB {
     },
 
     (error: any) => {
-      // This won't ever happen right now. Need to look more into this.
+      // This (maybe) won't ever happen right now. Need to look more into this.
       // * above statement is wrong. This does happen if the server goes down. Need to reconnect. Confirmed on node. Not sure about browser
       console.log("feed error", error);
     },
 
     () => {
-      //this.reconnectToChangeFeed(config);
+      this.closeChangeFeed();
+      return this.config().pipe(take(1)).subscribe((config) => {
+        this.configureChangeFeed(config);
+      });
+      
     });
 
   }
@@ -349,6 +347,7 @@ export class CouchDB {
   }
 
   public changes(): Observable<CouchDBChanges> {
+    const stopChanges: Subject<boolean> = new Subject();
     return Observable.create((observer: Observer<CouchDBChanges>) => {
       this.config().pipe(take(1)).subscribe((config: WatcherConfig) => {
         this.httpRequestWithAuthRetry<CouchDBChanges>(
@@ -359,9 +358,15 @@ export class CouchDB {
 
           FetchBehavior.stream,
           'GET'
-        ).subscribe( // probably a memory leak
+        ).pipe(takeUntil(stopChanges)).subscribe(
           (response: CouchDBChanges) => {
-            observer.next(response);
+            if (response.last_seq !== undefined) {
+              stopChanges.next(true);
+              observer.error({errorCode: 200, last_seq: response.last_seq});
+            } else {
+              observer.next(response);
+            }
+
           }
 
         );
@@ -648,11 +653,6 @@ export class CouchDB {
           observer.error(errorMessage);
         }
 
-      },
-
-      () => {
-        console.log("clozzzzzzz")
-        observer.complete();
       });
 
     }).pipe(mergeAll());
