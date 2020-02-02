@@ -1,5 +1,5 @@
 import { Observer, Observable, Subject, BehaviorSubject, combineLatest, of } from 'rxjs';
-import { distinctUntilChanged, take, map, mergeAll, tap, skip, takeUntil, debounceTime, filter } from 'rxjs/operators';
+import { distinctUntilChanged, take, map, mergeAll, tap, skip, takeUntil, debounceTime, filter, catchError } from 'rxjs/operators';
 
 import {
   FetchBehavior,
