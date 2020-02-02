@@ -305,6 +305,14 @@ export class CouchDB {
             document._rev = doc.rev;
             document._id = doc.id;
             observer.next(this.documents.doc(<CouchDBDocument>document));
+          },
+          
+          (err) => {
+            observer.error(err);
+          },
+          
+          () => {
+            observer.complete();
           });
           
         } else {
@@ -362,11 +370,19 @@ export class CouchDB {
           (response: CouchDBChanges) => {
             if (response.last_seq !== undefined) {
               stopChanges.next(true);
-              observer.error({errorCode: 200, last_seq: response.last_seq});
+              observer.complete();
             } else {
               observer.next(response);
             }
 
+          },
+
+          (err) => {
+            observer.error(err);
+          },
+
+          () => {
+            observer.complete();
           }
 
         );
@@ -537,7 +553,10 @@ export class CouchDB {
       }
 
       observer.complete();
-    });
+    },
+    
+    (err) => observer.error(err),
+    () => observer.complete());
 
   }
 
