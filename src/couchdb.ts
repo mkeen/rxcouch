@@ -1,11 +1,10 @@
 import { Observer, Observable, Subject, BehaviorSubject, combineLatest, of } from 'rxjs';
-import { distinctUntilChanged, take, map, mergeAll, tap, skip, takeUntil, debounceTime, filter, catchError } from 'rxjs/operators';
+import { distinctUntilChanged, take, map, mergeAll, tap, skip, takeUntil, debounceTime, finalize } from 'rxjs/operators';
 
 import {
   FetchBehavior,
   HttpRequest,
   HttpRequestOptions,
-  HttpResponseWithHeaders,
   ServerErrorResponse,
 } from '@mkeen/rxhttp';
 
@@ -16,22 +15,16 @@ import {
   CouchDBChanges,
   CouchDBDocumentRevisionResponse,
   CouchDBDocument,
-  CouchDBDesignViewOptions,
-  CouchDBDesignView,
-  CouchDBDesignList,
   WatcherConfig,
   CouchDBPreDocument,
   CouchDBAppChangesSubscriptions,
-  CouchDBAuthenticationResponse,
   AuthorizationBehavior,
-  CouchDBCredentials,
   CouchDBFindQuery,
   CouchDBFindResponse,
-  CouchDBSession,
-  CouchDBBasicResponse,
-  CouchDBUserContext,
   CouchDBDeleteResponse
 } from './types';
+
+import { CouchSession } from './couchsession';
 
 import {
   IDS,
@@ -41,18 +34,12 @@ import {
   LOCALHOST
 } from './enums';
 
-import { entityOrDefault } from './sugar';
+import { entityOrDefault, nextIfChanged } from './sugar';
 
 import { CouchDBDocumentCollection } from './couchdbdocumentcollection';
 
 export class CouchDB {
-  public authenticated: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
   public documents: CouchDBDocumentCollection = new CouchDBDocumentCollection();
-  public loginAttemptMade: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
-  public userSession: BehaviorSubject<CouchDBSession | null> = new BehaviorSubject<CouchDBSession | null>(null);
-  public cookie: BehaviorSubject<string | null> = new BehaviorSubject<string | null>(null);
-  public context: BehaviorSubject<CouchDBUserContext | null> = new BehaviorSubject<CouchDBUserContext | null>(null);
-
   private changeFeedAbort: Subject<boolean> = new Subject();
   private appDocChanges: CouchDBAppChangesSubscriptions = {};
   private changeFeedHttpRequest: HttpRequest<CouchDBChanges> | null = null;
@@ -64,13 +51,12 @@ export class CouchDB {
 
   constructor(
     rxCouchConfig: RxCouchConfig,
-    public auth: AuthorizationBehavior = AuthorizationBehavior.open,
-    public credentials: Observable<CouchDBCredentials> | null = null
+    private couchSession: CouchSession | null = null
   ) {
     rxCouchConfig = Object.assign({}, rxCouchConfig);
 
     this.databaseName =
-      new BehaviorSubject<string>(rxCouchConfig.dbName);
+      new BehaviorSubject<string>(entityOrDefault(rxCouchConfig.dbName, '_users'));
 
     this.host =
       new BehaviorSubject<string>(entityOrDefault(rxCouchConfig.host, LOCALHOST));
@@ -89,10 +75,18 @@ export class CouchDB {
         distinctUntilChanged(),
         debounceTime(0),
       ).subscribe((config: WatcherConfig) => {
+        if(!this.couchSession) {
+          this.couchSession = new CouchSession(
+            AuthorizationBehavior.open,
+            CouchUrls.session(config)
+          );
+
+        }
+
         const idsEmpty = config[IDS].length === 0;
         if(idsEmpty || !config[TRACK_CHANGES]) {
           this.closeChangeFeed();
-        } else if(config[AUTHENTICATED] || this.auth === AuthorizationBehavior.open) {
+        } else if(config[AUTHENTICATED] || this.couchSession.authorizationBehavior === AuthorizationBehavior.open) {
           this.configureChangeFeed(config);
         }
 
@@ -100,94 +94,17 @@ export class CouchDB {
 
     );
 
-    if (this.credentials) {
-      this.credentials.subscribe((couchDbCreds: CouchDBCredentials) => { // memory leak.. need to unsub
-        this.authenticate(couchDbCreds).pipe(take(1)).subscribe((_authSuccess) => {
-          if (!this.authenticated.value) {
-            this.authenticated.next(true);
-          }
-
-        },
-
-        (_error) => {
-          if (!!this.authenticated.value) {
-            this.authenticated.next(false);
-          }
-
-        });
-
-      });
-
-    }
-
   }
 
-  public authenticate(providedCredentials?: CouchDBCredentials): Observable<boolean> {
-    return Observable.create((observer: Observer<boolean>) => {
-      if (this.auth === AuthorizationBehavior.cookie) {
-        if (providedCredentials) {
-          const { username, password } = providedCredentials;
-          this.attemptNewAuthentication(username, password).pipe(take(1)).subscribe(
-            (authResponse: CouchDBAuthenticationResponse) => {
-              if (this.authenticated.value !== true) {
-                this.authenticated.next(true);
-              }
-
-              delete authResponse.ok;
-              this.context.next(<CouchDBUserContext>authResponse);
-
-              observer.next(true);
-            },
-
-            (_error) => {
-              this.context.next(null);
-              observer.error(false);
-              observer.complete();
-            }
-
-          );
-
-        } else {
-          if (this.loginAttemptMade.value === false) {
-            this.loginAttemptMade.next(true);
-            this.session().pipe(take(1)).subscribe(
-              (session: CouchDBSession) => {
-                const { ok, userCtx } = session;
-                const authenticated = !!userCtx.name;
-
-                if (this.authenticated.value !== authenticated) {
-                  this.authenticated.next(authenticated);
-                  if (ok) {
-                    this.context.next(session.userCtx);
-                    observer.next(true);
-                  }
-
-                }
-
-                this.context.next(null);
-                observer.error(false);
-              }
-
-            );
-
-          } else {
-            this.context.next(null);
-            observer.error(false);
-          }
-
-        }
-
-      }
-
-    });
-
+  public reconfigure(rxCouchConfig: RxCouchConfig) {
+    nextIfChanged(this.databaseName, rxCouchConfig.dbName);
+    nextIfChanged(this.host, rxCouchConfig.host);
+    nextIfChanged(this.port, rxCouchConfig.port);
+    nextIfChanged(this.ssl, rxCouchConfig.ssl);
+    nextIfChanged(this.trackChanges, rxCouchConfig.trackChanges);
   }
 
   public closeChangeFeed() {
-    if(this.changeFeedHttpRequest) {
-      this.changeFeedHttpRequest.cancel();
-    }
-
     this.changeFeedAbort.next(true);
   }
 
@@ -197,14 +114,6 @@ export class CouchDB {
       'doc_ids': config[IDS]
     });
 
-    this.changeFeedHttpRequest = this.httpRequest<CouchDBChanges>(
-      config,
-      requestUrl,
-      FetchBehavior.stream,
-      'POST',
-      ids
-    );
-
     this.httpRequestWithAuthRetry<CouchDBChanges>(
       config,
       requestUrl,
@@ -212,8 +121,6 @@ export class CouchDB {
       JSON.stringify({
         'doc_ids': config[IDS]
       }),
-
-      this.changeFeedHttpRequest
     ).pipe(
       takeUntil(this.changeFeedAbort)
     ).subscribe((update: CouchDBChanges) => {
@@ -237,11 +144,15 @@ export class CouchDB {
     },
 
     () => {
-      this.closeChangeFeed();
       return this.config().pipe(take(1)).subscribe((config) => {
-        this.configureChangeFeed(config);
+        const idsEmpty = config[IDS].length === 0;
+        if(idsEmpty || !config[TRACK_CHANGES]) {
+          return null;
+        } else if(config[AUTHENTICATED] || this.couchSession?.authorizationBehavior === AuthorizationBehavior.open) {
+          this.configureChangeFeed(config);
+        }
       });
-      
+
     });
 
   }
@@ -253,38 +164,9 @@ export class CouchDB {
       this.host,
       this.port,
       this.ssl,
-      this.cookie,
+      this.couchSession ? this.couchSession.cookie : of(''),
       this.trackChanges,
-      this.authenticated
-    );
-
-  }
-
-  public design<T>(
-    designName: string,
-    designType: CouchDBDesignView | CouchDBDesignList,
-    designTypeName: string,
-    options?: CouchDBDesignViewOptions
-  ): Observable<T> {
-    return this.config().pipe(
-      take(1),
-      map((config: WatcherConfig) => {
-        return this.httpRequest<T>(
-          config,
-          CouchUrls.design(
-            config,
-            designName,
-            designTypeName,
-            designType,
-            options
-          ),
-
-        ).fetch();
-
-      }),
-
-      mergeAll(),
-      take(1)
+      this.couchSession ? this.couchSession.authenticated : of(false)
     );
 
   }
@@ -306,15 +188,15 @@ export class CouchDB {
             document._id = doc.id;
             observer.next(this.documents.doc(<CouchDBDocument>document));
           },
-          
+
           (err) => {
             observer.error(err);
           },
-          
+
           () => {
             observer.complete();
           });
-          
+
         } else {
           observer.next(this.documents.doc(document._id));
         }
@@ -358,19 +240,22 @@ export class CouchDB {
     const stopChanges: Subject<boolean> = new Subject();
     return Observable.create((observer: Observer<CouchDBChanges>) => {
       this.config().pipe(take(1)).subscribe((config: WatcherConfig) => {
+        const url = CouchUrls.changes(
+          config
+        );
+
+        const behavior = FetchBehavior.stream;
+        const method = 'GET';
+
         this.httpRequestWithAuthRetry<CouchDBChanges>(
           config,
-          CouchUrls.changes(
-            config
-          ),
-
-          FetchBehavior.stream,
-          'GET'
+          url,
+          behavior,
+          method
         ).pipe(takeUntil(stopChanges)).subscribe(
           (response: CouchDBChanges) => {
             if (response.last_seq !== undefined) {
               stopChanges.next(true);
-              observer.complete();
             } else {
               observer.next(response);
             }
@@ -389,92 +274,12 @@ export class CouchDB {
 
       });
 
-    });
-
-  }
-
-  public session(): Observable<CouchDBSession> {
-    return Observable.create((observer: Observer<CouchDBSession>) => {
-      this.config().pipe(take(1)).subscribe((config: WatcherConfig) => {
-        this.httpRequest<HttpResponseWithHeaders<CouchDBSession>>(
-          config,
-          CouchUrls.session(config),
-          FetchBehavior.simpleWithHeaders
-        ).fetch().pipe(
-          tap(this.saveCookie),
-          map(this.extractResponse)
-        ).subscribe(
-          (response: CouchDBSession) => {
-            if(!this.loginAttemptMade.value) {
-              this.loginAttemptMade.next(true);
-            }
-
-            if (response.ok && response.info.authenticated) {
-              this.context.next(response.userCtx);
-
-              if (!this.authenticated.value) {
-                this.authenticated.next(true);
-              }
-
-            } else {
-              this.context.next(null);
-
-              if (!!this.authenticated.value) {
-                this.authenticated.next(false);
-              }
-
-            }
-
-            observer.next(response);
-          },
-
-          (err: any) => {
-            observer.error(err);
-          },
-
-          // () => { this.loginAttemptMade.next(true); } // todo see if this could replace above call.
-          // not sure that this would actuallt work or not. If not, should be easy to add to rxhttp
-        );
-
-      });
-
-    });
-
-  }
-
-  public destroySession() {
-    return Observable.create((observer: Observer<CouchDBBasicResponse>) => {
-      this.config().pipe(take(1)).subscribe((config: WatcherConfig) => {
-        this.httpRequest<CouchDBBasicResponse>(
-          config,
-          CouchUrls.session(config),
-          FetchBehavior.simple,
-          'delete'
-        ).fetch().subscribe((response: CouchDBBasicResponse) => {
-          if (response.ok) {
-            this.authenticated.next(false);
-            this.cookie.next(null);
-            this.documents.clear();
-          }
-
-          observer.next(response);
-        });
-
-      });
-
-    });
-
-  }
-
-  public saveCookie = (httpResponse: HttpResponseWithHeaders<any>) => { // todo: this should probably be private
-    const { headers } = httpResponse;
-    if (typeof process === 'object') {
-      const cookie = headers.get('set-cookie');
-      if (cookie) {
-        this.cookie.next(cookie);
+    }).pipe(finalize(
+      () => {
+        stopChanges.next(true);
       }
 
-    }
+    ));
 
   }
 
@@ -485,14 +290,10 @@ export class CouchDB {
 
   }
 
-  private extractResponse(httpResponse: HttpResponseWithHeaders<any>): any {
-    return httpResponse.response;
-  }
-
   private deleteDocument(
     documentId: string,
     observer: Observer<CouchDBDeleteResponse> // make this api better. having to pass in an observable is weird. would
-  ): void {                                              // be better if this returned an observable that emitted the behaviorsubject
+  ): void {                                   // be better if this returned an observable that emitted the behaviorsubject
     this.config().pipe(
       take(1),
       map((config: WatcherConfig) => {
@@ -554,7 +355,7 @@ export class CouchDB {
 
       observer.complete();
     },
-    
+
     (err) => observer.error(err),
     () => observer.complete());
 
@@ -581,38 +382,6 @@ export class CouchDB {
       }),
       mergeAll()
     );
-    
-  }
-
-  private attemptNewAuthentication(
-    username: string,
-    password: string
-  ): Observable<CouchDBAuthenticationResponse> {
-    return this.config().pipe(
-      take(1),
-      map((config: WatcherConfig) => {
-        return this.httpRequest<HttpResponseWithHeaders<CouchDBAuthenticationResponse>>(
-          config,
-          CouchUrls.authenticate(config),
-          FetchBehavior.simpleWithHeaders,
-          'POST',
-          JSON.stringify({
-            'username': username,
-            'password': password
-          })
-
-        ).fetch().pipe(
-          tap(this.saveCookie),
-          map(this.extractResponse),
-          tap((_response) => {
-            this.loginAttemptMade.next(true);
-          })
-
-        );
-
-      }),
-      mergeAll()
-    );
 
   }
 
@@ -634,8 +403,8 @@ export class CouchDB {
     return Observable.create((observer: Observer<Observable<T>>): void => {
       (behavior === FetchBehavior.simpleWithHeaders ?
         (<Observable<any>>httpRequest.fetch()).pipe(
-          tap(this.saveCookie),
-          map(this.extractResponse)) :
+          tap(this.couchSession?.saveCookie),
+          map(this.couchSession ? this.couchSession.extractResponse : (_a) => null)) :
         httpRequest.fetch()
       ).subscribe((response: T) => {
         observer.next(of(response));
@@ -643,9 +412,9 @@ export class CouchDB {
 
       (errorMessage: ServerErrorResponse) => {
         if (errorMessage.errorCode === 401 || errorMessage.errorCode === 403) {
-          this.authenticated.next(false);
-          this.cookie.next(null);
-          this.authenticate().subscribe((authResponse: boolean) => {
+          this.couchSession?.authenticated.next(false);
+          this.couchSession?.cookie.next(null);
+          this.couchSession?.authenticate().pipe(take(1)).subscribe((authResponse: boolean) => {
             if (authResponse) {
               this.config().pipe(take(1)).subscribe((config: WatcherConfig) => {
                 observer.next(this.httpRequestWithAuthRetry<T>(
@@ -664,8 +433,12 @@ export class CouchDB {
 
           },
 
-          (error) => { 
+          (error) => {
             observer.error(error);
+          },
+
+          () => {
+            // Some day, possibly use this as a hook for retrying connections
           });
 
         } else {
@@ -674,7 +447,9 @@ export class CouchDB {
 
       });
 
-    }).pipe(mergeAll());
+    }).pipe(mergeAll(), finalize(() => {
+      httpRequest.cancel();
+    }));
 
   }
 
