@@ -63,7 +63,7 @@ export interface CouchDBChange {
 }
 
 export interface RxCouchConfig {
-  dbName: string;
+  dbName?: string;
   host?: string;
   port?: number;
   ssl?: boolean;
@@ -80,7 +80,7 @@ export interface CouchDBChanges { // Refactor: rename to CouchDBChange
   deleted?: boolean;
 }
 
-export interface CouchDBChangeFeed {           
+export interface CouchDBChangeFeed {
   last_seq: string;
   pending: number;
   results: CouchDBChanges[]; // CouchDBChange[] ^^^^
