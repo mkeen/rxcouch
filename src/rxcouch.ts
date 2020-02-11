@@ -1,4 +1,5 @@
 export { CouchDB } from './couchdb';
+export { CouchSession } from './couchsession';
 export {
   CouchDBDocument,
   CouchDBPreDocument,
