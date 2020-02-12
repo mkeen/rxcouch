@@ -55,8 +55,8 @@ export class CouchDBDocumentCollection {
 
     if (this.isKnownDocument(document._id)) {
       if (this.changed(document)) {
-        this.documents[document._id].next(document);
         this.snapshot(document);
+        this.documents[document._id].next(document);
       }
 
       return this.documents[document._id];
