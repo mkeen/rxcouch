@@ -183,7 +183,7 @@ export class CouchDB {
 
       } else {
         if (this.documents.changed(document)) {
-          this.saveDocument(document).subscribe((doc) => {
+          this.saveDocument(document).pipe(take(1)).subscribe((doc) => {
             document._rev = doc.rev;
             document._id = doc.id;
             observer.next(this.documents.doc(<CouchDBDocument>document));
@@ -512,7 +512,7 @@ export class CouchDB {
 
         if (this.documents.changed(changedDoc)) {
           this.stopListeningForLocalChanges(changedDoc._id);
-          this.doc(changedDoc).subscribe((_e: any) => { });
+          this.doc(changedDoc).pipe(take(1)).subscribe((_e: any) => { });
         }
 
       });
