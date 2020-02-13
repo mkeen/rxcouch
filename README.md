@@ -52,15 +52,20 @@ Let's take a look at how to initialize RxCouch for connecting to a CouchDB datab
 ```typescript
 import { of } from 'rxjs';
 import { CouchDB,
+         CouchSession,
          AuthorizationBehavior } from '@mkeen/rxcouch';
+
+const couchSession: CouchSession = new CouchSession(
+  AuthorizationBehavior.cookie,
+  `${COUCH_SSL? 'https://' : 'http://'}${COUCH_HOST}:${COUCH_PORT}/_session`,
+  of({username: 'username', password: 'password'}})
+);
 
 const couchDbConnection = new CouchDB(
   {
     dbName: 'people',
     host: 'localhost'
-  },
-  AuthorizationBehavior.cookie,
-  of({username: 'username', password: 'password'}})
+  }
 );
 
 //...
@@ -68,7 +73,9 @@ const couchDbConnection = new CouchDB(
 
 At first glance this is obviously different than the bare-bones initialization example above. We are using the `AuthorizationBehavior.cookie` enumerated type for readability's sake.
 
-The big detail to note here is that the final argument passed to the CouchDB initializer is an `Observable`. In this example it's hardcoded. In a real-world implementation, you'll create an `Observable` that emits (for example) when a user submits a login form and pass that `Observable` into the initializer.
+The big detail to note here is that the final argument passed to the CouchSession initializer is an `Observable`. In this example it's hardcoded. In a real-world implementation, you'll create an `Observable` that emits (for example) when a user submits a login form and pass that `Observable` into the initializer.
+
+It's common and recommended to share a single session instance across several CouchDB instances.
 
 Since we're hardcoding the credentials `Observable` argument, the above example will result in an authentication attempt being made to the speficied CouchDB host (without using HTTPS) immediately.
 
