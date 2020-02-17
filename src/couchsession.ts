@@ -22,21 +22,18 @@ export class CouchSession {
   public authenticated: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
   public loginAttemptMade: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
   public userSession: BehaviorSubject<CouchDBSession | null> = new BehaviorSubject<CouchDBSession | null>(null);
-  public cookie: BehaviorSubject<string | null> = new BehaviorSubject<string | null>(null);
+  public cookie: BehaviorSubject<string> = new BehaviorSubject<string>('');
   public context: BehaviorSubject<CouchDBUserContext | null> = new BehaviorSubject<CouchDBUserContext | null>(null);
 
   constructor(
     public authorizationBehavior: AuthorizationBehavior,
-    private sessionUrl?: string,
+    public sessionUrl: string = '',
     private credentials?: Observable<CouchDBCredentials>,
   ) {
-    if(this.credentials !== undefined) {
+    if(!!this.credentials) {
       this.credentials.subscribe((couchDbCreds: CouchDBCredentials) => {
         this.authenticate(couchDbCreds).pipe(take(1)).subscribe((_authSuccess) => {
-          if (!this.authenticated.value) {
-            this.authenticated.next(true);
-          }
-
+          this.authenticated.next(this.authenticated.value);
         },
 
         (_error) => {
@@ -70,6 +67,7 @@ export class CouchSession {
             },
 
             (_error) => {
+              console.warn(_error);
               this.context.next(null);
               observer.error(false);
               observer.complete();
@@ -120,7 +118,7 @@ export class CouchSession {
   public get(): Observable<CouchDBSession> {
     return Observable.create((observer: Observer<CouchDBSession>) => {
       this.httpRequest<HttpResponseWithHeaders<CouchDBSession>>(
-        this.sessionUrl ? this.sessionUrl : '',
+        this.sessionUrl,
         FetchBehavior.simpleWithHeaders
       ).fetch().pipe(
         tap(this.saveCookie),
@@ -162,7 +160,7 @@ export class CouchSession {
 
   }
 
-  saveCookie(httpResponse: HttpResponseWithHeaders<any>) { // todo: this should probably be private
+  saveCookie = (httpResponse: HttpResponseWithHeaders<any>) => {
     const { headers } = httpResponse;
     if (typeof process === 'object') {
       const cookie = headers.get('set-cookie');
@@ -171,10 +169,9 @@ export class CouchSession {
       }
 
     }
-
   }
 
-  extractResponse(httpResponse: HttpResponseWithHeaders<any>): any {
+  extractResponse = (httpResponse: HttpResponseWithHeaders<any>) => {
     return httpResponse.response;
   }
 
@@ -183,7 +180,7 @@ export class CouchSession {
     password: string
   ): Observable<CouchDBAuthenticationResponse> {
     return this.httpRequest<HttpResponseWithHeaders<CouchDBAuthenticationResponse>>(
-      this.sessionUrl ? this.sessionUrl : '',
+      this.sessionUrl,
       FetchBehavior.simpleWithHeaders,
       'POST',
       JSON.stringify({
@@ -245,13 +242,13 @@ export class CouchSession {
   public destroy() {
     return Observable.create((observer: Observer<CouchDBBasicResponse>) => {
       this.httpRequest<CouchDBBasicResponse>(
-        this.sessionUrl ? this.sessionUrl : '',
+        this.sessionUrl,
         FetchBehavior.simple,
         'delete'
       ).fetch().subscribe((response: CouchDBBasicResponse) => {
         if (response.ok) {
           this.authenticated.next(false);
-          this.cookie.next(null);
+          this.cookie.next('');
         }
 
         observer.next(response);

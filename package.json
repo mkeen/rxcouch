@@ -1,6 +1,6 @@
 {
   "name": "@mkeen/rxcouch",
-  "version": "4.1.0",
+  "version": "4.2.2",
   "description": "Real Time RxJs Based CouchDB Client",
   "keywords": [
     "couchdb-client",
@@ -25,14 +25,14 @@
   "author": "Mike Keen",
   "license": "ISC",
   "dependencies": {
-    "@mkeen/rxhttp": "^1.12.0",
+    "@mkeen/rxhttp": "^1.12.4",
     "js-sha256": "^0.9.0",
     "lodash": "^4.17.15",
     "rxjs": "^6.5.4"
   },
   "devDependencies": {
     "@types/lodash": "^4.14.149",
-    "@types/node": "^12.12.26",
+    "@types/node": "^12.12.27",
     "ts-loader": "6.2.1",
     "typescript": "3.7.5"
   }

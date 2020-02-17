@@ -51,7 +51,9 @@ export class CouchDB {
 
   constructor(
     rxCouchConfig: RxCouchConfig,
-    private couchSession: CouchSession | null = null
+    public couchSession: CouchSession = new CouchSession(
+      AuthorizationBehavior.open
+    )
   ) {
     rxCouchConfig = Object.assign({}, rxCouchConfig);
 
@@ -75,14 +77,6 @@ export class CouchDB {
         distinctUntilChanged(),
         debounceTime(0),
       ).subscribe((config: WatcherConfig) => {
-        if(!this.couchSession) {
-          this.couchSession = new CouchSession(
-            AuthorizationBehavior.open,
-            CouchUrls.session(config)
-          );
-
-        }
-
         const idsEmpty = config[IDS].length === 0;
         if(idsEmpty || !config[TRACK_CHANGES]) {
           this.closeChangeFeed();
@@ -164,9 +158,9 @@ export class CouchDB {
       this.host,
       this.port,
       this.ssl,
-      this.couchSession ? this.couchSession.cookie : of(''),
+      this.couchSession.cookie,
       this.trackChanges,
-      this.couchSession ? this.couchSession.authenticated : of(false)
+      this.couchSession.authenticated
     );
 
   }
@@ -413,7 +407,7 @@ export class CouchDB {
       (errorMessage: ServerErrorResponse) => {
         if (errorMessage.errorCode === 401 || errorMessage.errorCode === 403) {
           this.couchSession?.authenticated.next(false);
-          this.couchSession?.cookie.next(null);
+          this.couchSession?.cookie.next('');
           this.couchSession?.authenticate().pipe(take(1)).subscribe((authResponse: boolean) => {
             if (authResponse) {
               this.config().pipe(take(1)).subscribe((config: WatcherConfig) => {
