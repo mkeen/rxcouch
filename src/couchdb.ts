@@ -21,7 +21,7 @@ import {
   AuthorizationBehavior,
   CouchDBFindQuery,
   CouchDBFindResponse,
-  CouchDBDeleteResponse
+  CouchDBGenericResponse
 } from './types';
 
 import { CouchSession } from './couchsession';
@@ -278,20 +278,62 @@ export class CouchDB {
   }
 
   public delete(documentId: string) {
-    return Observable.create((observer: Observer<CouchDBDeleteResponse>): void => {
+    return Observable.create((observer: Observer<CouchDBGenericResponse>): void => {
       this.deleteDocument(documentId, observer);
     });
 
   }
 
+  public createDb(name: string) {
+    return this.config().pipe(
+      take(1),
+      map((config: WatcherConfig) => {
+        return this.httpRequestWithAuthRetry<CouchDBGenericResponse>(
+          config,
+          CouchUrls.database(
+            config,
+            name
+          ),
+
+          FetchBehavior.simple,
+          'PUT'
+        )
+
+      }),
+      mergeAll()
+    );
+
+  }
+
+  public uuids(count: number = 1) {
+    return this.config().pipe(
+      take(1),
+      map((config: WatcherConfig) => {
+        return this.httpRequestWithAuthRetry<CouchDBGenericResponse>(
+          config,
+          CouchUrls.uuids(
+            config,
+            count
+          ),
+
+          FetchBehavior.simple,
+          'GET'
+        );
+
+      }),
+      mergeAll()
+    );
+
+  }
+
   private deleteDocument(
     documentId: string,
-    observer: Observer<CouchDBDeleteResponse> // make this api better. having to pass in an observable is weird. would
+    observer: Observer<CouchDBGenericResponse> // make this api better. having to pass in an observable is weird. would
   ): void {                                   // be better if this returned an observable that emitted the behaviorsubject
     this.config().pipe(
       take(1),
       map((config: WatcherConfig) => {
-        return this.httpRequestWithAuthRetry<CouchDBDeleteResponse>(
+        return this.httpRequestWithAuthRetry<CouchDBGenericResponse>(
           config,
           CouchUrls.document(
             config,
@@ -304,7 +346,7 @@ export class CouchDB {
 
       }),
       mergeAll()
-    ).subscribe((response: CouchDBDeleteResponse) => {
+    ).subscribe((response: CouchDBGenericResponse) => {
       if(response.ok) {
         this.stopListeningForLocalChanges(response.id);
         this.documents.remove(response.id);

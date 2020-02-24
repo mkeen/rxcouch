@@ -70,4 +70,12 @@ export namespace CouchUrls {
     return `${prefix(config)}/${config[DATABASE_NAME]}/_changes?include_docs=true&feed=continuous&since=now`;
   }
 
+  export function database(config: WatcherConfig, newDbName: string): string {
+    return `${prefix(config)}/${newDbName}`;
+  }
+
+  export function uuids(config: WatcherConfig, count: number): string {
+    return `${prefix(config)}/_uuids?count=${count}`;
+  }
+
 }

@@ -189,7 +189,7 @@ export interface CouchDBFindResponse {
   bookmark: string;
 }
 
-export interface CouchDBDeleteResponse {
+export interface CouchDBGenericResponse {
   id: string;
   ok: boolean;
   rev: string;
