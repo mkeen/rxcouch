@@ -80,7 +80,7 @@ export class CouchDB {
         const idsEmpty = config[IDS].length === 0;
         if(idsEmpty || !config[TRACK_CHANGES]) {
           this.closeChangeFeed();
-        } else if(config[AUTHENTICATED] || this.couchSession.authorizationBehavior === AuthorizationBehavior.open) {
+        } else {
           this.configureChangeFeed(config);
         }
 
@@ -142,7 +142,7 @@ export class CouchDB {
         const idsEmpty = config[IDS].length === 0;
         if(idsEmpty || !config[TRACK_CHANGES]) {
           return null;
-        } else if(config[AUTHENTICATED] || this.couchSession?.authorizationBehavior === AuthorizationBehavior.open) {
+        } else {
           this.configureChangeFeed(config);
         }
       });
@@ -281,6 +281,26 @@ export class CouchDB {
     return Observable.create((observer: Observer<CouchDBGenericResponse>): void => {
       this.deleteDocument(documentId, observer);
     });
+
+  }
+
+  public all() {
+    return this.config().pipe(
+      take(1),
+      map((config: WatcherConfig) => {
+        return this.httpRequestWithAuthRetry<CouchDBGenericResponse>(
+          config,
+          CouchUrls._all_docs(
+            config
+          ),
+
+          FetchBehavior.simple,
+          'GET'
+        )
+
+      }),
+      mergeAll()
+    );
 
   }
 

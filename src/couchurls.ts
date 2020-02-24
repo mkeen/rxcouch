@@ -78,4 +78,8 @@ export namespace CouchUrls {
     return `${prefix(config)}/_uuids?count=${count}`;
   }
 
+  export function _all_docs(config: WatcherConfig): string {
+    return `${prefix(config)}/${config[DATABASE_NAME]}/_all_docs`;
+  }
+
 }
