@@ -42,6 +42,12 @@ export namespace CouchUrls {
     return url;
   }
 
+  export function documentDelete(config: WatcherConfig): string {
+    let url = `${prefix(config)}/${config[DATABASE_NAME]}/_bulk_docs`;
+
+    return url;
+  }
+
   export function prefix(config: WatcherConfig): string {
     return `${config[SSL] ? 'https' : 'http'}://${config[HOST]}:${config[PORT]}`
   }

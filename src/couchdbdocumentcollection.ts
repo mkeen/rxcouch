@@ -21,7 +21,7 @@ export class CouchDBDocumentCollection {
     }
 
     delete docCopy._rev;
-    
+
     const snapshot = this.snapshots[docCopy._id];
     if (snapshot === undefined) {
       return true;
@@ -81,13 +81,16 @@ export class CouchDBDocumentCollection {
   }
 
   public add(document: CouchDBDocument): void {
-    this.documents[document._id] = new BehaviorSubject<CouchDBDocument>(document);
-    this.ids.next(
-      _.sortBy( // todo: I don't think this sort is needed
-        _.union(this.ids.value, [document._id])
-      )
-      
-    );
+    if(!this.documents[document._id]) {
+      this.documents[document._id] = new BehaviorSubject<CouchDBDocument>(document);
+      this.ids.next(
+        _.sortBy( // todo: I don't think this sort is needed
+          _.union(this.ids.value, [document._id])
+        )
+
+      );
+
+    }
 
   }
 

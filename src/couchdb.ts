@@ -1,5 +1,5 @@
 import { Observer, Observable, Subject, BehaviorSubject, combineLatest, of } from 'rxjs';
-import { distinctUntilChanged, take, map, mergeAll, tap, skip, takeUntil, debounceTime, finalize } from 'rxjs/operators';
+import { distinctUntilChanged, take, map, mergeAll, tap, skip, takeUntil, debounceTime, finalize, merge } from 'rxjs/operators';
 
 import {
   FetchBehavior,
@@ -132,12 +132,25 @@ export class CouchDB {
     },
 
     (error: any) => {
-      // This (maybe) won't ever happen right now. Need to look more into this.
-      // * above statement is wrong. This does happen if the server goes down. Need to reconnect. Confirmed on node. Not sure about browser
-      console.log("feed error", error);
+      if(typeof(window) !== 'undefined') {
+        this.configureChangeFeed(config);
+      } else {
+        return this.config().pipe(take(1)).subscribe((config) => {
+          const idsEmpty = config[IDS].length === 0;
+          if(idsEmpty || !config[TRACK_CHANGES]) {
+            return null;
+          } else {
+            this.configureChangeFeed(config);
+          }
+
+        });
+
+      }
+
     },
 
     () => {
+      console.log(`[rxcouch] reconnecting`)
       return this.config().pipe(take(1)).subscribe((config) => {
         const idsEmpty = config[IDS].length === 0;
         if(idsEmpty || !config[TRACK_CHANGES]) {
@@ -231,55 +244,31 @@ export class CouchDB {
   }
 
   public changes(): Observable<CouchDBChanges> {
-    const stopChanges: Subject<boolean> = new Subject();
     return Observable.create((observer: Observer<CouchDBChanges>) => {
-      this.config().pipe(take(1)).subscribe((config: WatcherConfig) => {
-        const url = CouchUrls.changes(
-          config
-        );
-
-        const behavior = FetchBehavior.stream;
-        const method = 'GET';
-
-        this.httpRequestWithAuthRetry<CouchDBChanges>(
+      const stopChanges: Subject<boolean> = new Subject();
+      this.config().pipe(take(1)).subscribe((config) => {
+        return this.durableHttpRequest<CouchDBChanges>(
           config,
-          url,
-          behavior,
-          method
-        ).pipe(takeUntil(stopChanges)).subscribe(
-          (response: CouchDBChanges) => {
-            if (response.last_seq !== undefined) {
-              stopChanges.next(true);
-            } else {
-              observer.next(response);
-            }
-
-          },
-
-          (err) => {
-            observer.error(err);
-          },
-
-          () => {
-            observer.complete();
-          }
-
+          CouchUrls.changes(config),
+          observer
         );
 
-      });
+      })
 
-    }).pipe(finalize(
-      () => {
-        stopChanges.next(true);
-      }
-
-    ));
+    });
 
   }
 
-  public delete(documentId: string) {
+  public delete(docs: CouchDBDocument[]) {
     return Observable.create((observer: Observer<CouchDBGenericResponse>): void => {
-      this.deleteDocument(documentId, observer);
+      this.bulkModify(docs.map((doc) => Object.assign(doc, {_deleted: true})), observer);
+    });
+
+  }
+
+  public edit(docs: CouchDBDocument[]) {
+    return Observable.create((observer: Observer<CouchDBGenericResponse>): void => {
+      this.bulkModify(docs, observer);
     });
 
   }
@@ -325,6 +314,27 @@ export class CouchDB {
 
   }
 
+  public deleteDb(name: string) {
+    return this.config().pipe(
+      take(1),
+      map((config: WatcherConfig) => {
+        return this.httpRequestWithAuthRetry<CouchDBGenericResponse>(
+          config,
+          CouchUrls.database(
+            config,
+            name
+          ),
+
+          FetchBehavior.simple,
+          'DELETE'
+        )
+
+      }),
+      mergeAll()
+    );
+
+  }
+
   public uuids(count: number = 1) {
     return this.config().pipe(
       take(1),
@@ -346,35 +356,30 @@ export class CouchDB {
 
   }
 
-  private deleteDocument(
-    documentId: string,
+  public bulkModify(
+    docs: CouchDBDocument[],
     observer: Observer<CouchDBGenericResponse> // make this api better. having to pass in an observable is weird. would
-  ): void {                                   // be better if this returned an observable that emitted the behaviorsubject
+  ): void {                                    // be better if this returned an observable that emitted the behaviorsubject
     this.config().pipe(
       take(1),
       map((config: WatcherConfig) => {
         return this.httpRequestWithAuthRetry<CouchDBGenericResponse>(
           config,
-          CouchUrls.document(
-            config,
-            documentId,
+          CouchUrls.documentDelete(
+            config
           ),
 
           FetchBehavior.simple,
-          'DELETE'
+          'POST',
+          JSON.stringify({docs})
         );
 
       }),
       mergeAll()
     ).subscribe((response: CouchDBGenericResponse) => {
-      if(response.ok) {
-        this.stopListeningForLocalChanges(response.id);
-        this.documents.remove(response.id);
-        observer.next(response);
-      } else {
-        observer.error(response)
-      }
-
+      this.stopListeningForLocalChanges(response.id);
+      this.documents.remove(response.id);
+      observer.next(response);
       observer.complete();
     });
 
@@ -441,6 +446,92 @@ export class CouchDB {
 
   }
 
+  private durableHttpRequest<T>(
+    config: WatcherConfig,
+    url: string,
+    observer: Observer<T>,
+    behavior: FetchBehavior = FetchBehavior.stream,
+    method: string = 'GET',
+    body: any = null,
+    httpRequest = this.httpRequest<T>(
+      config,
+      url,
+      behavior,
+      method,
+      body,
+    ),
+    stopChanges: Subject<boolean> = new Subject(),
+    cycle: number = 1,
+    backoff: number = 100
+  ) {
+    httpRequest.fetch().pipe(takeUntil(stopChanges))
+      .subscribe((response: T) => {
+        if (!(<any>response).last_seq) {
+          observer.next(response);
+        }
+
+      },
+      
+      (errorInfo) => {
+        if (errorInfo.errorCode === 401) {
+          this.couchSession?.authenticate().pipe(take(1)).subscribe((success) => {
+            if(success) {
+              this.durableHttpRequest<T>(
+                config,
+                url,
+                observer,
+                behavior,
+                method,
+                body,
+                httpRequest = this.httpRequest<T>(
+                  config,
+                  url,
+                  behavior,
+                  method,
+                  body,
+                ),
+                stopChanges,
+                cycle + 1 < 10 ? cycle + 1 : 10,
+                backoff
+              )
+
+            } else {
+              observer.error(errorInfo)
+            }
+
+          });
+
+        } else {
+          observer.complete();
+        }
+
+      },
+      
+      () => {
+        setTimeout(() => {
+          this.durableHttpRequest<T>(
+            config,
+            url,
+            observer,
+            behavior,
+            method,
+            body,
+            httpRequest = this.httpRequest<T>(
+              config,
+              url,
+              behavior,
+              method,
+              body,
+            ),
+            stopChanges,
+            cycle + 1 < 10 ? cycle + 1 : 10,
+            backoff
+          )
+        }, backoff * cycle)
+      });
+
+  }
+
   private httpRequestWithAuthRetry<T>(
     config: WatcherConfig,
     url: string,
@@ -468,22 +559,19 @@ export class CouchDB {
 
       (errorMessage: ServerErrorResponse) => {
         if (errorMessage.errorCode === 401 || errorMessage.errorCode === 403) {
-          this.couchSession?.authenticated.next(false);
-          this.couchSession?.cookie.next('');
+          console.log(`[rxcouch] auth failed ${JSON.stringify(errorMessage)}`);
           this.couchSession?.authenticate().pipe(take(1)).subscribe((authResponse: boolean) => {
             if (authResponse) {
-              this.config().pipe(take(1)).subscribe((config: WatcherConfig) => {
-                observer.next(this.httpRequestWithAuthRetry<T>(
-                  config,
-                  url,
-                  behavior,
-                  method,
-                  body
-                ));
-
-              });
+              observer.next(this.httpRequestWithAuthRetry<T>(
+                config,
+                url,
+                behavior,
+                method,
+                body
+              ));
 
             } else {
+              console.log(`[rxcouch] REauth failed ${JSON.stringify(errorMessage)}`);
               observer.error(errorMessage);
             }
 
@@ -495,12 +583,17 @@ export class CouchDB {
 
           () => {
             // Some day, possibly use this as a hook for retrying connections
+            console.log("dieeeeed")
           });
 
         } else {
           observer.error(errorMessage);
         }
 
+      },
+      
+      () => {
+        console.log("ddieieieie")
       });
 
     }).pipe(mergeAll(), finalize(() => {
