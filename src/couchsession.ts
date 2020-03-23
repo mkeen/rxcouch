@@ -17,7 +17,6 @@ import {
   CouchDBUserContext,
 } from './types';
 
-
 export class CouchSession {
   public authenticated: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
   public loginAttemptMade: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
@@ -25,12 +24,14 @@ export class CouchSession {
   public cookie: BehaviorSubject<string> = new BehaviorSubject<string>('');
   public context: BehaviorSubject<CouchDBUserContext | null> = new BehaviorSubject<CouchDBUserContext | null>(null);
 
+  private lastCredentials: CouchDBCredentials | undefined;
+
   constructor(
     public authorizationBehavior: AuthorizationBehavior,
     public sessionUrl: string = '',
     private credentials?: Observable<CouchDBCredentials>,
   ) {
-    if(!!this.credentials) {
+    if(this.credentials) {
       this.credentials.subscribe((couchDbCreds: CouchDBCredentials) => {
         this.authenticate(couchDbCreds).pipe(take(1)).subscribe((_authSuccess) => {
           this.authenticated.next(this.authenticated.value);
@@ -53,9 +54,14 @@ export class CouchSession {
     return Observable.create((observer: Observer<boolean>) => {
       if (this.authorizationBehavior === AuthorizationBehavior.cookie) {
         if (providedCredentials) {
+          this.lastCredentials = providedCredentials;
           const { username, password } = providedCredentials;
           this.attemptNewAuthentication(username, password).pipe(take(1)).subscribe(
             (authResponse: CouchDBAuthenticationResponse) => {
+              if(!this.loginAttemptMade.value) {
+                this.loginAttemptMade.next(true);
+              }
+
               if (this.authenticated.value !== true) {
                 this.authenticated.next(true);
               }
@@ -67,6 +73,10 @@ export class CouchSession {
             },
 
             (_error) => {
+              if(!this.loginAttemptMade.value) {
+                this.loginAttemptMade.next(true);
+              }
+              
               console.warn(_error);
               this.context.next(null);
               observer.error(false);
@@ -77,7 +87,6 @@ export class CouchSession {
 
         } else {
           if (this.loginAttemptMade.value === false) {
-            this.loginAttemptMade.next(true);
             this.get().pipe(take(1)).subscribe(
               (session: CouchDBSession) => {
                 const { ok, userCtx } = session;
@@ -113,6 +122,10 @@ export class CouchSession {
 
     });
 
+  }
+
+  public reauthenticate(): Observable<boolean> {
+    return this.authenticate(this.lastCredentials);
   }
 
   public get(): Observable<CouchDBSession> {

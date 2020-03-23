@@ -76,6 +76,10 @@ export namespace CouchUrls {
     return `${prefix(config)}/${config[DATABASE_NAME]}/_changes?include_docs=true&feed=continuous&since=now`;
   }
 
+  export function changesWithIds(config: WatcherConfig): string {
+    return `${prefix(config)}/${config[DATABASE_NAME]}/_changes?feed=continuous&include_docs=true&since=now&filter=_doc_ids`;
+  }
+
   export function database(config: WatcherConfig, newDbName: string): string {
     return `${prefix(config)}/${newDbName}`;
   }

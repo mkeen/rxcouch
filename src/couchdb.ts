@@ -1,5 +1,5 @@
-import { Observer, Observable, Subject, BehaviorSubject, combineLatest, of } from 'rxjs';
-import { distinctUntilChanged, take, map, mergeAll, tap, skip, takeUntil, debounceTime, finalize, merge } from 'rxjs/operators';
+import { Observer, Observable, Subject, BehaviorSubject, combineLatest, of, Subscription, timer} from 'rxjs';
+import { distinctUntilChanged, take, map, mergeAll, tap, skip, takeUntil, debounceTime, finalize, filter } from 'rxjs/operators';
 
 import {
   FetchBehavior,
@@ -31,7 +31,8 @@ import {
   COOKIE,
   TRACK_CHANGES,
   AUTHENTICATED,
-  LOCALHOST
+  LOCALHOST,
+
 } from './enums';
 
 import { entityOrDefault, nextIfChanged } from './sugar';
@@ -42,7 +43,7 @@ export class CouchDB {
   public documents: CouchDBDocumentCollection = new CouchDBDocumentCollection();
   private changeFeedAbort: Subject<boolean> = new Subject();
   private appDocChanges: CouchDBAppChangesSubscriptions = {};
-  private changeFeedHttpRequest: HttpRequest<CouchDBChanges> | null = null;
+  private changeFeedSubscription: Subscription | null = null;
   private databaseName: BehaviorSubject<string>;
   private host: BehaviorSubject<string>;
   private port: BehaviorSubject<number>;
@@ -57,20 +58,11 @@ export class CouchDB {
   ) {
     rxCouchConfig = Object.assign({}, rxCouchConfig);
 
-    this.databaseName =
-      new BehaviorSubject<string>(entityOrDefault(rxCouchConfig.dbName, '_users'));
-
-    this.host =
-      new BehaviorSubject<string>(entityOrDefault(rxCouchConfig.host, LOCALHOST));
-
-    this.port =
-      new BehaviorSubject<number>(entityOrDefault(rxCouchConfig.port, 5984));
-
-    this.ssl =
-      new BehaviorSubject<boolean>(entityOrDefault(rxCouchConfig.ssl, false));
-
-    this.trackChanges =
-      new BehaviorSubject<boolean>(entityOrDefault(rxCouchConfig.trackChanges, true));
+    this.databaseName = new BehaviorSubject<string>(entityOrDefault(rxCouchConfig.dbName, '_users'));
+    this.host = new BehaviorSubject<string>(entityOrDefault(rxCouchConfig.host, LOCALHOST));
+    this.port = new BehaviorSubject<number>(entityOrDefault(rxCouchConfig.port, 5984));
+    this.ssl = new BehaviorSubject<boolean>(entityOrDefault(rxCouchConfig.ssl, false));
+    this.trackChanges = new BehaviorSubject<boolean>(entityOrDefault(rxCouchConfig.trackChanges, true));
 
     this.config()
       .pipe(
@@ -90,6 +82,29 @@ export class CouchDB {
 
   }
 
+  public configureChangeFeed(config: WatcherConfig) {
+    if (this.couchSession.authorizationBehavior === AuthorizationBehavior.cookie && config[AUTHENTICATED]) {
+      if (this.changeFeedSubscription) {
+        this.changeFeedAbort.next(true);
+        this.changeFeedSubscription.unsubscribe();
+        this.changeFeedSubscription = null;
+      }
+
+      this.changeFeedSubscription = this.changes(this.changeFeedAbort, config).subscribe((update) => {        
+        if (this.documents.changed(update.doc)) {
+          this.stopListeningForLocalChanges(update.doc._id);
+          this.documents.doc(update.doc);
+          this.listenForLocalChanges(update.doc._id);
+        }
+
+      });
+
+    } else {
+      this.closeChangeFeed();
+    }
+
+  }
+
   public reconfigure(rxCouchConfig: RxCouchConfig) {
     nextIfChanged(this.databaseName, rxCouchConfig.dbName);
     nextIfChanged(this.host, rxCouchConfig.host);
@@ -100,68 +115,6 @@ export class CouchDB {
 
   public closeChangeFeed() {
     this.changeFeedAbort.next(true);
-  }
-
-  public configureChangeFeed(config: WatcherConfig) {
-    const requestUrl = CouchUrls.watch(config);
-    const ids = JSON.stringify({
-      'doc_ids': config[IDS]
-    });
-
-    this.httpRequestWithAuthRetry<CouchDBChanges>(
-      config,
-      requestUrl,
-      FetchBehavior.stream, 'POST',
-      JSON.stringify({
-        'doc_ids': config[IDS]
-      }),
-    ).pipe(
-      takeUntil(this.changeFeedAbort)
-    ).subscribe((update: CouchDBChanges) => {
-      if (update.last_seq !== undefined) {
-        this.configureChangeFeed(config);
-      } else {
-        if (this.documents.changed(update.doc)) {
-          this.stopListeningForLocalChanges(update.doc._id);
-          this.documents.doc(update.doc);
-          this.listenForLocalChanges(update.doc._id);
-        }
-
-      }
-
-    },
-
-    (error: any) => {
-      if(typeof(window) !== 'undefined') {
-        this.configureChangeFeed(config);
-      } else {
-        return this.config().pipe(take(1)).subscribe((config) => {
-          const idsEmpty = config[IDS].length === 0;
-          if(idsEmpty || !config[TRACK_CHANGES]) {
-            return null;
-          } else {
-            this.configureChangeFeed(config);
-          }
-
-        });
-
-      }
-
-    },
-
-    () => {
-      console.log(`[rxcouch] reconnecting`)
-      return this.config().pipe(take(1)).subscribe((config) => {
-        const idsEmpty = config[IDS].length === 0;
-        if(idsEmpty || !config[TRACK_CHANGES]) {
-          return null;
-        } else {
-          this.configureChangeFeed(config);
-        }
-      });
-
-    });
-
   }
 
   public config(): Observable<WatcherConfig> {
@@ -243,19 +196,42 @@ export class CouchDB {
 
   }
 
-  public changes(): Observable<CouchDBChanges> {
+  public changes(
+    stopChanges: Subject<boolean> = new Subject(),
+    config?: WatcherConfig,
+  ): Observable<CouchDBChanges> {
     return Observable.create((observer: Observer<CouchDBChanges>) => {
-      const stopChanges: Subject<boolean> = new Subject();
-      this.config().pipe(take(1)).subscribe((config) => {
+      if(!config) {
+        this.config().pipe(take(1)).subscribe((config) => {
+          return this.durableHttpRequest<CouchDBChanges>(
+            config,
+            CouchUrls.changes(config),
+            observer,
+            stopChanges,
+            FetchBehavior.stream
+          )
+  
+        })
+
+      } else {
         return this.durableHttpRequest<CouchDBChanges>(
           config,
-          CouchUrls.changes(config),
-          observer
-        );
+          CouchUrls.changesWithIds(config),
+          observer,
+          stopChanges,
+          FetchBehavior.stream,
+          'POST',
+          { doc_ids: config[IDS] }
+        )
 
-      })
+      }
 
-    });
+    }).pipe(finalize(
+      () => {
+        stopChanges.next(true);
+      }
+
+    ), filter(update => !(<any>update).last_seq));
 
   }
 
@@ -450,50 +426,43 @@ export class CouchDB {
     config: WatcherConfig,
     url: string,
     observer: Observer<T>,
+    stopChanges: Subject<boolean>,
     behavior: FetchBehavior = FetchBehavior.stream,
-    method: string = 'GET',
-    body: any = null,
+    method: string = 'POST',
+    body: any = { },
     httpRequest = this.httpRequest<T>(
       config,
       url,
       behavior,
       method,
-      body,
+      body && typeof(body) === 'object' ? JSON.stringify(body) : body,
     ),
-    stopChanges: Subject<boolean> = new Subject(),
     cycle: number = 1,
     backoff: number = 100
   ) {
+    body = body && typeof(body) === 'object' ? JSON.stringify(body) : body;
+
     httpRequest.fetch().pipe(takeUntil(stopChanges))
       .subscribe((response: T) => {
-        if (!(<any>response).last_seq) {
-          observer.next(response);
-        }
-
+        observer.next(response);
       },
       
       (errorInfo) => {
         if (errorInfo.errorCode === 401) {
-          this.couchSession?.authenticate().pipe(take(1)).subscribe((success) => {
-            if(success) {
+          (!this.couchSession?.loginAttemptMade.value ? this.couchSession?.authenticate : this.couchSession?.reauthenticate)().pipe(take(1)).subscribe((success) => {
+            if (success) {
               this.durableHttpRequest<T>(
                 config,
                 url,
                 observer,
+                stopChanges,
                 behavior,
                 method,
                 body,
-                httpRequest = this.httpRequest<T>(
-                  config,
-                  url,
-                  behavior,
-                  method,
-                  body,
-                ),
-                stopChanges,
+                undefined,
                 cycle + 1 < 10 ? cycle + 1 : 10,
                 backoff
-              )
+              );
 
             } else {
               observer.error(errorInfo)
@@ -501,33 +470,44 @@ export class CouchDB {
 
           });
 
-        } else {
-          observer.complete();
+        } else if (!errorInfo.errorCode) {
+          timer(backoff * cycle).pipe(take(1)).subscribe((_complete) => {
+            this.durableHttpRequest<T>(
+              config,
+              url,
+              observer,
+              stopChanges,
+              behavior,
+              method,
+              body,
+              undefined,
+              cycle + 1 < 10 ? cycle + 1 : 10,
+              backoff
+            );
+
+          });
+
         }
 
       },
       
       () => {
-        setTimeout(() => {
+        timer(backoff * cycle).pipe(take(1)).subscribe((_complete) => {
           this.durableHttpRequest<T>(
             config,
             url,
             observer,
+            stopChanges,
             behavior,
             method,
             body,
-            httpRequest = this.httpRequest<T>(
-              config,
-              url,
-              behavior,
-              method,
-              body,
-            ),
-            stopChanges,
+            undefined,
             cycle + 1 < 10 ? cycle + 1 : 10,
             backoff
-          )
-        }, backoff * cycle)
+          );
+
+        })
+
       });
 
   }
@@ -560,7 +540,7 @@ export class CouchDB {
       (errorMessage: ServerErrorResponse) => {
         if (errorMessage.errorCode === 401 || errorMessage.errorCode === 403) {
           console.log(`[rxcouch] auth failed ${JSON.stringify(errorMessage)}`);
-          this.couchSession?.authenticate().pipe(take(1)).subscribe((authResponse: boolean) => {
+          (!this.couchSession?.loginAttemptMade.value ? this.couchSession?.authenticate : this.couchSession?.reauthenticate)().pipe(take(1)).subscribe((authResponse: boolean) => {
             if (authResponse) {
               observer.next(this.httpRequestWithAuthRetry<T>(
                 config,
@@ -583,7 +563,7 @@ export class CouchDB {
 
           () => {
             // Some day, possibly use this as a hook for retrying connections
-            console.log("dieeeeed")
+            
           });
 
         } else {
@@ -593,7 +573,7 @@ export class CouchDB {
       },
       
       () => {
-        console.log("ddieieieie")
+        
       });
 
     }).pipe(mergeAll(), finalize(() => {
