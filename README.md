@@ -6,8 +6,8 @@ Using ReactiveX to create a modern, real-time CouchDB client written in TypeScri
 
 ## Prerequisites
 
-RxJS 6+  
-CouchDB 2.3+
+RxJS 6.6+  
+CouchDB 2.3+, CouchDB 3.0+
 
 ## Installation
 
@@ -50,7 +50,7 @@ CouchDB supports [Basic Authentication as well as Cookie Authentication](https:/
 Let's take a look at how to initialize RxCouch for connecting to a CouchDB database that has Authentication configured.
 
 ```typescript
-import { of } from 'rxjs';
+import { BehaviorSubject } from 'rxjs';
 import { CouchDB,
          CouchSession,
          AuthorizationBehavior } from '@mkeen/rxcouch';
@@ -58,14 +58,16 @@ import { CouchDB,
 const couchSession: CouchSession = new CouchSession(
   AuthorizationBehavior.cookie,
   `${COUCH_SSL? 'https://' : 'http://'}${COUCH_HOST}:${COUCH_PORT}/_session`,
-  of({username: 'username', password: 'password'}})
+  new BehaviorSubject({username: 'username', password: 'password'}}),
 );
 
 const couchDbConnection = new CouchDB(
   {
     dbName: 'people',
-    host: 'localhost'
-  }
+    host: 'localhost',
+    trackChanges: true,
+  },
+  couchSession
 );
 
 //...

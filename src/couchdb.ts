@@ -4,7 +4,6 @@ import { distinctUntilChanged, take, map, mergeAll, tap, skip, takeUntil, deboun
 import {
   FetchBehavior,
   HttpRequest,
-  HttpRequestOptions,
   ServerErrorResponse,
 } from '@mkeen/rxhttp';
 
@@ -597,8 +596,8 @@ export class CouchDB {
 
   }
 
-  private httpRequestOptions(config: WatcherConfig, method: string, body: string): HttpRequestOptions {
-    let httpOptions: HttpRequestOptions = {
+  private httpRequestOptions(config: WatcherConfig, method: string, body: string): RequestInit {
+    let httpOptions: RequestInit = {
       method
     }
 

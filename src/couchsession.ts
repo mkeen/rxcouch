@@ -4,7 +4,6 @@ import { take, map, tap } from 'rxjs/operators';
 import {
   FetchBehavior,
   HttpRequest,
-  HttpRequestOptions,
   HttpResponseWithHeaders,
 } from '@mkeen/rxhttp';
 
@@ -226,8 +225,8 @@ export class CouchSession {
 
   }
 
-  private httpRequestOptions(cookie: string | null, method: string, body: string): HttpRequestOptions {
-    let httpOptions: HttpRequestOptions = {
+  private httpRequestOptions(cookie: string | null, method: string, body: string): RequestInit {
+    let httpOptions: RequestInit = {
       method
     }
 
