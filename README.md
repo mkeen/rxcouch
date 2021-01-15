@@ -1,8 +1,8 @@
 # RxCouch
 
-📀 **Universal** 👑 **Reactive** 🛋 **Cozy**
+📀 **Universal** \ 👑 **Reactive** \ 🛋 **Cozy**
 
-Using ReactiveX to create a modern, real-time CouchDB client written in TypeScript that runs in the browser or node. The change feed is handled automatically. Two way data bindings by way of `BehaviorSubject`.
+RxJS powers this modern, real-time CouchDB client written in TypeScript that runs in the browser or node. The change feed is handled automatically. Everything's a `BehaviorSubject`, so you get two-way binding for free. Enough said.
 
 ## Prerequisites
 
