@@ -3,15 +3,24 @@ import { HttpRequestHeaders } from '@mkeen/rxhttp';
 
 // Internal configuration
 export type WatcherConfig = [
-  string[],              // 0
-  string,                // 1
-  string,                // 2
-  number,                // 3
-  boolean,               // 4
-  string | null,         // 5
-  boolean,               // 6
-  boolean                // 7
+  string[],               // 0
+  string,                 // 1
+  string,                 // 2
+  number,                 // 3
+  boolean,                // 4
+  string,                 // 5
+  boolean,                // 6
+  boolean                 // 7
 ];
+
+export const IDS =           0;
+export const DATABASE_NAME = 1;
+export const HOST =          2;
+export const PORT =          3;
+export const SSL =           4;
+export const COOKIE =        5;
+export const TRACK_CHANGES = 6;
+export const AUTHENTICATED = 7;
 
 export type CouchDBDocument = {
   _id: string;
@@ -52,7 +61,7 @@ export type CouchDBFindSort = {
 export type CouchDBDesignView = 'view';
 export type CouchDBDesignList = 'list';
 
-export type CouchDBAuthentication = (username: string, password: string) => void;
+export type CouchDBAuthentication = (name: string, password: string) => void;
 
 export interface CouchDBBasicResponse {
   ok: boolean;
@@ -151,7 +160,7 @@ export interface CouchDBUserContext {
   roles: string[];
 }
 
-export interface CouchDBSession {
+export interface CouchDBSessionInfo {
   ok: boolean;
   info: CouchDBSessionInfo;
   userCtx: CouchDBUserContext;
@@ -159,12 +168,14 @@ export interface CouchDBSession {
 
 export enum AuthorizationBehavior {
   cookie = 'cookie',
-  open = 'open'
+  open = 'open',
+  jwt = 'jwt',
 }
 
 export interface CouchDBCredentials {
-  username: string;
+  name: string;
   password: string;
+  access_token?: string;
 }
 
 export interface CouchDBFindQuery {
@@ -193,4 +204,18 @@ export interface CouchDBGenericResponse {
   id: string;
   ok: boolean;
   rev: string;
+}
+
+export interface CouchDBUUIDSResponse {
+  uuids: string[];
+}
+
+export interface CouchDBDocumentRoles {
+  names: string[];
+  roles: string[];
+}
+
+export interface CouchDBSecurity {
+  admins: CouchDBDocumentRoles;
+  members: CouchDBDocumentRoles;
 }

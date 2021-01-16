@@ -11,15 +11,15 @@ import {
   CouchDBAuthenticationResponse,
   AuthorizationBehavior,
   CouchDBCredentials,
-  CouchDBSession,
+  CouchDBSessionInfo,
   CouchDBBasicResponse,
   CouchDBUserContext,
 } from './types';
 
-export class CouchSession {
+export class CouchDBSession {
   public authenticated: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
   public loginAttemptMade: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
-  public userSession: BehaviorSubject<CouchDBSession | null> = new BehaviorSubject<CouchDBSession | null>(null);
+  public userSession: BehaviorSubject<CouchDBSessionInfo | null> = new BehaviorSubject<CouchDBSessionInfo | null>(null);
   public cookie: BehaviorSubject<string> = new BehaviorSubject<string>('');
   public context: BehaviorSubject<CouchDBUserContext | null> = new BehaviorSubject<CouchDBUserContext | null>(null);
 
@@ -30,32 +30,21 @@ export class CouchSession {
     public sessionUrl: string = '',
     private credentials?: Observable<CouchDBCredentials>,
   ) {
-    if(this.credentials) {
+    if (this.credentials) {
       this.credentials.subscribe((couchDbCreds: CouchDBCredentials) => {
-        this.authenticate(couchDbCreds).pipe(take(1)).subscribe((_authSuccess) => {
-          this.authenticated.next(this.authenticated.value);
-        },
-
-        (_error) => {
-          if (!!this.authenticated.value) {
-            this.authenticated.next(false);
-          }
-
-        });
-
+        this.authenticate(couchDbCreds).pipe(take(1)).subscribe((_) => { });
       });
 
     }
 
   }
-
+  
   public authenticate(providedCredentials?: CouchDBCredentials): Observable<boolean> {
     return Observable.create((observer: Observer<boolean>) => {
-      if (this.authorizationBehavior === AuthorizationBehavior.cookie) {
+      if ([AuthorizationBehavior.cookie, AuthorizationBehavior.jwt].includes(this.authorizationBehavior)) {
         if (providedCredentials) {
           this.lastCredentials = providedCredentials;
-          const { username, password } = providedCredentials;
-          this.attemptNewAuthentication(username, password).pipe(take(1)).subscribe(
+          this.attemptNewAuthentication(providedCredentials).pipe(take(1)).subscribe(
             (authResponse: CouchDBAuthenticationResponse) => {
               if(!this.loginAttemptMade.value) {
                 this.loginAttemptMade.next(true);
@@ -65,9 +54,7 @@ export class CouchSession {
                 this.authenticated.next(true);
               }
 
-              delete authResponse.ok;
               this.context.next(<CouchDBUserContext>authResponse);
-
               observer.next(true);
             },
 
@@ -75,6 +62,8 @@ export class CouchSession {
               if(!this.loginAttemptMade.value) {
                 this.loginAttemptMade.next(true);
               }
+              
+              this.authenticated.next(false);
               
               console.warn(_error);
               this.context.next(null);
@@ -87,7 +76,7 @@ export class CouchSession {
         } else {
           if (this.loginAttemptMade.value === false) {
             this.get().pipe(take(1)).subscribe(
-              (session: CouchDBSession) => {
+              (session: CouchDBSessionInfo) => {
                 const { ok, userCtx } = session;
                 const authenticated = !!userCtx.name;
 
@@ -127,16 +116,16 @@ export class CouchSession {
     return this.authenticate(this.lastCredentials);
   }
 
-  public get(): Observable<CouchDBSession> {
-    return Observable.create((observer: Observer<CouchDBSession>) => {
-      this.httpRequest<HttpResponseWithHeaders<CouchDBSession>>(
+  public get(): Observable<CouchDBSessionInfo> {
+    return Observable.create((observer: Observer<CouchDBSessionInfo>) => {
+      this.httpRequest<HttpResponseWithHeaders<CouchDBSessionInfo>>(
         this.sessionUrl,
         FetchBehavior.simpleWithHeaders
       ).fetch().pipe(
         tap(this.saveCookie),
         map(this.extractResponse)
       ).subscribe(
-        (response: CouchDBSession) => {
+        (response: CouchDBSessionInfo) => {
           if(!this.loginAttemptMade.value) {
             this.loginAttemptMade.next(true);
           }
@@ -165,22 +154,31 @@ export class CouchSession {
         },
 
         // () => { this.loginAttemptMade.next(true); } // todo see if this could replace above call.
-        // not sure that this would actuallt work or not. If not, should be easy to add to rxhttp
+        // not sure that this would actually work or not. If not, should be easy to add to rxhttp
       );
 
     });
 
   }
-
-  saveCookie = (httpResponse: HttpResponseWithHeaders<any>) => {
-    const { headers } = httpResponse;
-    if (typeof process === 'object') {
-      const cookie = headers.get('set-cookie');
-      if (cookie) {
-        this.cookie.next(cookie);
+  
+  saveCookie = (access_token?) => {
+    return (httpResponse: HttpResponseWithHeaders<any>) => {
+      const { response, headers } = httpResponse;
+      if (response.ok) {
+        if (access_token) {
+          this.cookie.next(access_token)
+        } else if (typeof process === 'object') {
+          const cookie = headers.get('set-cookie');
+          if (cookie) {
+            this.cookie.next(cookie);
+          }
+          
+        }
+        
       }
-
+      
     }
+    
   }
 
   extractResponse = (httpResponse: HttpResponseWithHeaders<any>) => {
@@ -188,20 +186,16 @@ export class CouchSession {
   }
 
   private attemptNewAuthentication(
-    username: string,
-    password: string
+    credentials: CouchDBCredentials
   ): Observable<CouchDBAuthenticationResponse> {
     return this.httpRequest<HttpResponseWithHeaders<CouchDBAuthenticationResponse>>(
       this.sessionUrl,
       FetchBehavior.simpleWithHeaders,
       'POST',
-      JSON.stringify({
-        'username': username,
-        'password': password
-      })
-
+      JSON.stringify(!credentials.access_token ? { name: credentials.name, password: credentials.password } : undefined),
+      credentials.access_token ? { Authorization: `Bearer ${credentials.access_token}` } : undefined
     ).fetch().pipe(
-      tap(this.saveCookie),
+      tap(this.saveCookie(credentials.access_token)),
       map(this.extractResponse),
       tap((_response) => {
         this.loginAttemptMade.next(true);
@@ -216,22 +210,27 @@ export class CouchSession {
     behavior: FetchBehavior = FetchBehavior.simpleWithHeaders,
     method: string = 'GET',
     body: any = undefined,
+    headers: any = undefined,
   ): HttpRequest<T> {
     return new HttpRequest<T>(
       url,
-      this.httpRequestOptions(this.cookie?.value, method, body),
+      this.httpRequestOptions(this.cookie?.value, method, body, headers),
       behavior
     );
 
   }
 
-  private httpRequestOptions(cookie: string | null, method: string, body: string): RequestInit {
+  private httpRequestOptions(cookie: string | null, method: string, body: string, headers?: string[][]): RequestInit {
     let httpOptions: RequestInit = {
       method
     }
 
     if (body) {
       httpOptions.body = body;
+    }
+    
+    if (headers && headers.length) {
+      httpOptions.headers = headers;
     }
 
     if (cookie !== null) {
