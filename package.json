@@ -1,6 +1,6 @@
 {
   "name": "@mkeen/rxcouch",
-  "version": "4.8.0",
+  "version": "4.8.1",
   "description": "Real Time RxJs Based CouchDB Client",
   "keywords": [
     "couchdb-client",
@@ -20,7 +20,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "test:node": "jest"
+    "tests:integration:node": "jest"
   },
   "author": "Mike Keen",
   "license": "ISC",

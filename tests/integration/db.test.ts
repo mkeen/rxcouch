@@ -1,9 +1,9 @@
-import { CouchDB, CouchDBDocument } from '../src/rxcouch';
-import { CouchDBSession } from '../src/couchdbsession';
+import { CouchDB, CouchDBDocument } from '../../src/rxcouch';
+import { CouchDBSession } from '../../src/couchdbsession';
 import { take, skip } from 'rxjs/operators';
 
 import { BehaviorSubject } from 'rxjs';
-import { AuthorizationBehavior } from '../src/types';
+import { AuthorizationBehavior } from '../../src/types';
 
 import { session, host, port, ssl, } from './helper';
 

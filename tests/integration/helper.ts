@@ -1,6 +1,6 @@
-import { CouchDBSession } from '../src/couchdbsession'; 
+import { CouchDBSession } from '../../src/couchdbsession'; 
 import { BehaviorSubject } from 'rxjs';
-import { AuthorizationBehavior } from '../src/types';
+import { AuthorizationBehavior } from '../../src/types';
 
 const creds = new BehaviorSubject({
   name: 'admin',
