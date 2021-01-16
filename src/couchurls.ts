@@ -1,13 +1,12 @@
-import { WatcherConfig } from './types';
-
 import {
+  WatcherConfig,
   IDS,
   DATABASE_NAME,
   HOST,
   PORT,
   SSL,
-  COOKIE
-} from './enums';
+  COOKIE,
+} from './types';
 
 export namespace CouchUrls {
   export function design(
@@ -82,6 +81,10 @@ export namespace CouchUrls {
 
   export function database(config: WatcherConfig, newDbName: string): string {
     return `${prefix(config)}/${newDbName}`;
+  }
+
+  export function databaseSecurity(config: WatcherConfig, newDbName: string): string {
+    return `${database(config, newDbName)}/_security`;
   }
 
   export function uuids(config: WatcherConfig, count: number): string {

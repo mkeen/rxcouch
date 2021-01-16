@@ -72,12 +72,12 @@ export class CouchDBDocumentCollection {
     return this.documents[document_id] !== undefined;
   }
 
-  public isValidCouchDBDocument(entity: any): boolean { // todo: rename: this determines if entity is a document actually stored in the db
+  public isStoredCouchDBDocument(entity: any): boolean {
     return '_id' in entity && '_rev' in entity;
   }
 
   public isPreDocument(item: any): boolean {
-    return !this.isValidCouchDBDocument(item);
+    return !this.isStoredCouchDBDocument(item);
   }
 
   public add(document: CouchDBDocument): void {

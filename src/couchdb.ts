@@ -1,5 +1,5 @@
 import { Observer, Observable, Subject, BehaviorSubject, combineLatest, of, Subscription, timer} from 'rxjs';
-import { distinctUntilChanged, take, map, mergeAll, tap, skip, takeUntil, debounceTime, finalize, filter } from 'rxjs/operators';
+import { distinctUntilChanged, take, map, mergeAll, tap, skip, takeUntil, debounceTime, finalize, filter, find, zip } from 'rxjs/operators';
 
 import {
   FetchBehavior,
@@ -10,6 +10,10 @@ import {
 import { CouchUrls } from './couchurls';
 
 import {
+  IDS,
+  COOKIE,
+  TRACK_CHANGES,
+  AUTHENTICATED,
   RxCouchConfig,
   CouchDBChanges,
   CouchDBDocumentRevisionResponse,
@@ -20,19 +24,12 @@ import {
   AuthorizationBehavior,
   CouchDBFindQuery,
   CouchDBFindResponse,
-  CouchDBGenericResponse
+  CouchDBGenericResponse,
+  CouchDBUUIDSResponse,
+  CouchDBSecurity,
 } from './types';
 
-import { CouchSession } from './couchsession';
-
-import {
-  IDS,
-  COOKIE,
-  TRACK_CHANGES,
-  AUTHENTICATED,
-  LOCALHOST,
-
-} from './enums';
+import { CouchDBSession } from './couchdbsession';
 
 import { entityOrDefault, nextIfChanged } from './sugar';
 
@@ -51,14 +48,13 @@ export class CouchDB {
 
   constructor(
     rxCouchConfig: RxCouchConfig,
-    public couchSession: CouchSession = new CouchSession(
-      AuthorizationBehavior.open
-    )
+    public couchSession: CouchDBSession = new CouchDBSession(AuthorizationBehavior.open),
+    private rxhttpDebug: boolean = false,
   ) {
     rxCouchConfig = Object.assign({}, rxCouchConfig);
 
     this.databaseName = new BehaviorSubject<string>(entityOrDefault(rxCouchConfig.dbName, '_users'));
-    this.host = new BehaviorSubject<string>(entityOrDefault(rxCouchConfig.host, LOCALHOST));
+    this.host = new BehaviorSubject<string>(entityOrDefault(rxCouchConfig.host, '127.0.0.1'));
     this.port = new BehaviorSubject<number>(entityOrDefault(rxCouchConfig.port, 5984));
     this.ssl = new BehaviorSubject<boolean>(entityOrDefault(rxCouchConfig.ssl, false));
     this.trackChanges = new BehaviorSubject<boolean>(entityOrDefault(rxCouchConfig.trackChanges, true));
@@ -82,25 +78,20 @@ export class CouchDB {
   }
 
   public configureChangeFeed(config: WatcherConfig) {
-    if (this.couchSession.authorizationBehavior === AuthorizationBehavior.cookie && config[AUTHENTICATED]) {
-      if (this.changeFeedSubscription) {
-        this.changeFeedAbort.next(true);
-        this.changeFeedSubscription.unsubscribe();
-        this.changeFeedSubscription = null;
+    if (this.changeFeedSubscription) {
+      this.changeFeedAbort.next(true);
+      this.changeFeedSubscription.unsubscribe();
+      this.changeFeedSubscription = null;
+    }
+
+    this.changeFeedSubscription = this.changes(this.changeFeedAbort, config).subscribe((update) => {        
+      if (this.documents.changed(update.doc)) {
+        this.stopListeningForLocalChanges(update.doc._id);
+        this.documents.doc(update.doc);
+        this.listenForLocalChanges(update.doc._id);
       }
 
-      this.changeFeedSubscription = this.changes(this.changeFeedAbort, config).subscribe((update) => {        
-        if (this.documents.changed(update.doc)) {
-          this.stopListeningForLocalChanges(update.doc._id);
-          this.documents.doc(update.doc);
-          this.listenForLocalChanges(update.doc._id);
-        }
-
-      });
-
-    } else {
-      this.closeChangeFeed();
-    }
+    });
 
   }
 
@@ -169,6 +160,7 @@ export class CouchDB {
   public find(query: CouchDBFindQuery): Observable<CouchDBDocument[]> {
     return Observable.create((observer: Observer<CouchDBDocument[]>): void => {
       this.config().pipe(
+        filter(config => config[AUTHENTICATED]),
         take(1),
         map((config: WatcherConfig) => {
           return this.httpRequestWithAuthRetry<CouchDBFindResponse>(
@@ -201,16 +193,19 @@ export class CouchDB {
   ): Observable<CouchDBChanges> {
     return Observable.create((observer: Observer<CouchDBChanges>) => {
       if(!config) {
-        this.config().pipe(take(1)).subscribe((config) => {
+        this.config().pipe(
+          filter(config => config[AUTHENTICATED]),
+          take(1)
+        ).subscribe((config) => {
           return this.durableHttpRequest<CouchDBChanges>(
             config,
             CouchUrls.changes(config),
             observer,
             stopChanges,
             FetchBehavior.stream
-          )
+          );
   
-        })
+        });
 
       } else {
         return this.durableHttpRequest<CouchDBChanges>(
@@ -250,6 +245,7 @@ export class CouchDB {
 
   public all() {
     return this.config().pipe(
+      filter(config => config[AUTHENTICATED]),
       take(1),
       map((config: WatcherConfig) => {
         return this.httpRequestWithAuthRetry<CouchDBGenericResponse>(
@@ -270,6 +266,7 @@ export class CouchDB {
 
   public createDb(name: string) {
     return this.config().pipe(
+      filter(config => config[AUTHENTICATED]),
       take(1),
       map((config: WatcherConfig) => {
         return this.httpRequestWithAuthRetry<CouchDBGenericResponse>(
@@ -291,6 +288,7 @@ export class CouchDB {
 
   public deleteDb(name: string) {
     return this.config().pipe(
+      filter(config => config[AUTHENTICATED]),
       take(1),
       map((config: WatcherConfig) => {
         return this.httpRequestWithAuthRetry<CouchDBGenericResponse>(
@@ -310,11 +308,35 @@ export class CouchDB {
 
   }
 
-  public uuids(count: number = 1) {
+  public secureDb(name: string, securityObject: CouchDBSecurity) {
     return this.config().pipe(
+      filter(config => config[AUTHENTICATED]),
       take(1),
       map((config: WatcherConfig) => {
         return this.httpRequestWithAuthRetry<CouchDBGenericResponse>(
+          config,
+          CouchUrls.databaseSecurity(
+            config,
+            name
+          ),
+
+          FetchBehavior.simple,
+          'PUT',
+          securityObject
+        );
+
+      }),
+      mergeAll()
+    );
+
+  }
+
+  public uuids(count: number = 1) {
+    return this.config().pipe(
+      filter(config => config[AUTHENTICATED]),
+      take(1),
+      map((config: WatcherConfig) => {
+        return this.httpRequestWithAuthRetry<CouchDBUUIDSResponse>(
           config,
           CouchUrls.uuids(
             config,
@@ -336,6 +358,7 @@ export class CouchDB {
     observer: Observer<CouchDBGenericResponse> // make this api better. having to pass in an observable is weird. would
   ): void {                                    // be better if this returned an observable that emitted the behaviorsubject
     this.config().pipe(
+      filter(config => config[AUTHENTICATED]),
       take(1),
       map((config: WatcherConfig) => {
         return this.httpRequestWithAuthRetry<CouchDBGenericResponse>(
@@ -357,7 +380,7 @@ export class CouchDB {
       observer.next(response);
       observer.complete();
     });
-
+  
   }
 
   private getDocument(
@@ -365,6 +388,7 @@ export class CouchDB {
     observer: Observer<BehaviorSubject<CouchDBDocument>> // make this api better. having to pass in an observable is weird. would
   ): void {                                              // be better if this returned an observable that emitted the behaviorsubject
     this.config().pipe(
+      filter(config => config[AUTHENTICATED]),
       take(1),
       map((config: WatcherConfig) => {
         return this.httpRequestWithAuthRetry<CouchDBDocumentRevisionResponse>(
@@ -381,7 +405,7 @@ export class CouchDB {
       }),
       mergeAll()
     ).subscribe((doc: any) => {
-      if (this.documents.isValidCouchDBDocument(doc)) {
+      if (this.documents.isStoredCouchDBDocument(doc)) {
         observer.next(this.documents.doc(doc));
         this.listenForLocalChanges(doc._id);
       } else {
@@ -393,14 +417,15 @@ export class CouchDB {
     },
 
     (err) => observer.error(err),
+    
     () => observer.complete());
-
   }
 
   private saveDocument(
     document: CouchDBDocument | CouchDBPreDocument
   ): Observable<CouchDBDocumentRevisionResponse> {
     return this.config().pipe(
+      filter(config => config[AUTHENTICATED]),
       take(1),
       map((config: WatcherConfig) => {
         return this.httpRequestWithAuthRetry<CouchDBDocumentRevisionResponse>(
@@ -591,7 +616,8 @@ export class CouchDB {
     return new HttpRequest<T>(
       url,
       this.httpRequestOptions(config, method, body),
-      behavior
+      behavior,
+      !this.rxhttpDebug,
     );
 
   }
@@ -605,12 +631,19 @@ export class CouchDB {
       httpOptions.body = body;
     }
 
-    if (config[COOKIE] !== null) {
-      if ((<string>config[COOKIE]).length && typeof process === 'object') { // Todo: Type hint and length check really necessary?
-        httpOptions['headers'] = {
-          'Cookie': this.cookieForRequestHeader((<string>config[COOKIE])) // Todo: Why is type hint needed when inside the null check?
+    if (config[COOKIE].length) {
+      // If cookie auth is being used in browser, it will be implicitly sent with all outgoing requests. The below
+      // has process === 'object' present because we don't manually inject this header unless running on node.
+      if (this.couchSession.authorizationBehavior === AuthorizationBehavior.cookie && typeof process === 'object') {
+        httpOptions.headers = {
+          Cookie: this.cookieForRequestHeader(config[COOKIE]),
         }
 
+      } else if (this.couchSession.authorizationBehavior === AuthorizationBehavior.jwt) {
+        httpOptions.headers = {
+          Authorization: "Bearer ${config[COOKIE]}",
+        }
+        
       }
 
     }
