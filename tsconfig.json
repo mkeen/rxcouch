@@ -7,6 +7,7 @@
     "declaration": true,
     "strict": true,
     "moduleResolution": "node",
+    "noImplicitAny": false,
     "lib": [
       "dom",
       "es6",
@@ -15,6 +16,9 @@
   },
   "include": [
     "src"
+  ],
+  "exclude": [
+    "src/integration"
   ],
   "compileOnSave": true
 }
