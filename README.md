@@ -6,7 +6,7 @@ RxJS powers this real-time CouchDB client written in TypeScript that runs in the
 
 ## Prerequisites
 
-RxJS 6.6+  
+RxJS 6+  
 CouchDB 2.3+, CouchDB 3.0+
 
 ## Installation
