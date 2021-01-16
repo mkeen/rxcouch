@@ -36,18 +36,19 @@ const couchDbConnection = new CouchDB(
 
 CouchDB is initialized with: `(RxCouchConfig, AuthorizationBehavior?, Observable<CouchDBCredentials>?)`
 
-An `RxCouchConfig`, when passed into the CouchDB initializer, must have a `dbName` property at minimum. It can also have optional properties, which have the following default values:
+An `RxCouchConfig` looks like this by default:
 
-`host`: localhost  
+{ `host`: 'localhost'  
 `port`: 5984  
 `ssl`: false  
-`trackChanges`: true
+`trackChanges`: true,
+`dbName`: '_users' }
 
 ### Configuring Authentication
 
-CouchDB supports [Basic Authentication as well as Cookie Authentication](https://docs.couchdb.org/en/stable/api/server/authn.html). This library only supports Cookie Authentication.
+CouchDB supports [Basic Auth, Cookies, and JWT](https://docs.couchdb.org/en/stable/api/server/authn.html) authentication schemes. This library supports Cookies or JWT (bearer token). For development purposes only, this library also supports open installs of couchdb without security.
 
-Let's take a look at how to initialize RxCouch for connecting to a CouchDB database that has Authentication configured.
+Let's take a look at how to initialize RxCouch for connecting to a CouchDB database that has Cookie Authentication configured.
 
 ```typescript
 import { BehaviorSubject } from 'rxjs';
@@ -73,17 +74,15 @@ const couchDbConnection = new CouchDB(
 //...
 ```
 
-At first glance this is obviously different than the bare-bones initialization example above. We are using the `AuthorizationBehavior.cookie` enumerated type for readability's sake.
-
-The big detail to note here is that the final argument passed to the CouchSession initializer is an `Observable`. In this example it's hardcoded. In a real-world implementation, you'll create an `Observable` that emits (for example) when a user submits a login form and pass that `Observable` into the initializer.
+The big detail to note here is that the final argument passed to the CouchSession initializer is an `Observable`. In this example it's hardcoded. In a real-world implementation, you'll create an `Observable` that emits when a user submits a login form, or when a configuration value is read, and pass that `Observable` into the initializer.
 
 It's common and recommended to share a single session instance across several CouchDB instances.
 
 Since we're hardcoding the credentials `Observable` argument, the above example will result in an authentication attempt being made to the speficied CouchDB host (without using HTTPS) immediately.
 
-### Getting the Current Session
+### Getting Info About the Current Session
 
-To determine which user (if any) is currently logged into CouchDB, you can call `session`, which will call out to CouchDB, and [ask for the latest session information](https://docs.couchdb.org/en/stable/api/server/authn.html#get--_session) from the server. `session` returns an `Observable` that emits a `CouchDBSession`.
+To determine which user (if any) is currently logged into CouchDB, you can call the `session()` function. `session` returns an `Observable` that emits a `CouchDBSession`.
 
 ```typescript
 //...
@@ -92,11 +91,11 @@ couchDbConnection.session().subscribe((session: CouchDBSession) => {
 });
 ```
 
-If you're using CouchDB to authenticate users in your application, you could call `session` when your app is initialized in order to determine if a user is logged in, and if so, any other information associated with that user.
+If you're using CouchDB to authenticate users in your application, you could call `session` when your app is initialized in order to determine if a user is logged in, and if so, any other information stored in the `_users` document.
 
 ### Dealing with Documents
 
-Whether authentication is used or not, a document is always returned to you by RxCouch in the form a `BehaviorSubject` which provides two-way, real-time data binding to the document that lives in CouchDB.
+Whether authentication is used or not, a document is always returned to you by RxCouch in the form a `BehaviorSubject` which provides a real-time two-way data binding with the document.
 
 #### Subscribe to Any Document in Real Time
 
@@ -135,7 +134,7 @@ const myCompletelyChangedDocument = {
 myDocument.next(myCompletelyChangedDocument);
 ```
 
-###### Result
+###### All Connected Clients Result:
 
 ```typescript
 Most recent person: { _id: "7782f0743bee05005a548ba8af00205b", _rev: "11-bf3003bb5f63b875db4284f319a0b918", name: "some new name here", email:  "mwk@mikekeen.com", phone: "323-209-5336"}
@@ -143,14 +142,14 @@ Most recent person: { _id: "7782f0743bee05005a548ba8af00205b", _rev: "11-bf3003b
 
 ### Creating And Modifying Documents
 
-In the above example, a document is fetched by `_id`. If a string is passed to `doc`, it will be assumed that it is a document id that you want to search the database for. If an object is passed in, one of two things will happen:
+In the above example, a document was fetched by its `_id`. The `doc()` function alternatively accepts an object as an argument. If an object is passed in, one of two things will happen:
 
-1. If the object contains both an `_id` and `_rev` field, the document that matches the `_id` will be updated in CouchDB.
-2. If the object does not contain both an `_id` and a `_rev` field, then a new document will be created based on the object passed.
+1. If the object contains both an `_id` and `_rev` field, the rest of the fields in the object will be used to update the document that matches the `_id`.
+2. If the object does not contain both an `_id` and a `_rev` field, then a new document will be created based on the fields contained in the object passed.
 
-Whichever of the above happens, `doc` returns a `BehaviorSubject` that will reflect all future changes to the relevant document.
+Whichever of the above happens, `doc` returns a `BehaviorSubject` that will reflect all future changes to the relevant document, and pass all changes upstream when `.next()` is called.
 
-#### Create a New Document
+#### Create a New Document and Subscribe to Future Changes
 
 ```typescript
 //...
@@ -169,7 +168,7 @@ const newlyCreatedPerson = couchDbConnection.doc({
 Person Feed: {"_id": "7782f0743bee05005a548ba8af00b4f5", "_rev": "1-2fee21d51258845545ea6506ab138919", "name": "tracy", "email": "tracy@company.com", "phone": "323-209-5336"}
 ```
 
-#### Modify an Existing Document
+#### Modify an Existing Document and Subscribe to Future Changes
 
 There are two ways to modify a document that already exists in CouchDB.
 
@@ -213,13 +212,11 @@ newlyCreatedPerson.next({
 Person Feed: {"_id": "7782f0743bee05005a548ba8af00b4f5", "_rev": "3-8da970f593132c80ccee83fc4708ce33", "name": "tracy Modified!", "email": "tracy@company-modified-again.com", "phone": "323-209-5336" }
 ```
 
-No matter how you fetch or modify a document, there's only ever one real subscription to the document itself. Once a document is known by RxCouch, it's possible to subscribe to it from many different places. Any of those subscriptions (which are `BehaviorSubject`'s) can be used to modify the document, and new versions of the document, regardless if they originate locally or remotely, will propagate to all subscribers.
-
 ### Finding Documents With a Query
 
-RxCouch exposes `find` from `CouchDB` that uses [CouchDB Selector Syntax](https://docs.couchdb.org/en/2.2.0/api/database/find.html#selector-syntax) to make queries, and returns a list of matching documents. Documents returned are not `BehaviorSubject`s.
+RxCouch exposes `find` from `CouchDB` that uses [CouchDB Selector Syntax](https://docs.couchdb.org/en/2.2.0/api/database/find.html#selector-syntax) to make queries, and returns a list of matching documents. Warning: Documents returned are not `BehaviorSubject`s!
 
-### Get a List of Documents That Match a Query and Log Them
+### Get a List of Documents That Match a Query
 
 Call `find` with `(CouchDBFindQuery)`.
 
@@ -290,15 +287,9 @@ Latest person: { "_id": "7782f0743bee05005a548ba8af00b4f5", "_rev": "3-8da970f59
 
 ## 🚂 Under the Hood
 
-The main design feature of RxCouch is two way data binding between your JavaScript application instance and your CouchDB documents.
-
-### The CouchDB Changes Feed & Document Subscriptions
-
-An instance of RxCouch's `CouchDB` class will open a real-time connection to CouchDB's change feed, and send a dynamically generated list of document ids in the body of a POST request. Any time this list changes (which happens as the instance's `doc` method is called and unique documents become known), the connection is closed, and a new one opened. This way, the changes subscription is always for a specific list of documents, and nothing more.
-
 #### Document Tracking
 
-Documents are cached and then tracked for changes. `CouchDBDocumentCollection` handles both caching and change tracking.
+Documents are automatically cached and then tracked for changes. `CouchDBDocumentCollection` handles both caching and change tracking.
 
 ##### Cache
 
@@ -306,6 +297,8 @@ Instances of `CouchDB` have a method called `doc`. Any documents that flow throu
 
 ##### Change Tracking
 
-Before document changes are propagated either to or from a `BehaviorSubject` that represents a known document, the potentially changed document is hashed and compared against a previously indexed (by document id) hash of the document. If the hashes don't match, the document has changed, and it will be passed into the `next` method of the relavent indexed `BehaviorSubject`. Finally, the indexed hash entry for the document will be updated.
+Before document changes are propagated either to or from a `BehaviorSubject`, the potentially changed document is hashed and compared against a previously indexed  hash of the document. If the hashes don't match, the document has changed, and it will be passed into the `next` method of the relavent indexed `BehaviorSubject`. Finally, the indexed hash entry for the document will be updated.
+
+## Thank you for using RxCouch!
 
 🇺🇸
