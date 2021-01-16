@@ -22,7 +22,7 @@ describe('documents', () => {
       ssl,
     }, session);
     
-    temp.createDb(uuid).pipe(take(1)).subscribe((_created) => {
+    const sub = temp.createDb(uuid).pipe(take(1)).subscribe((_created) => {
       connection = new CouchDB({
         dbName: uuid,
         host: '192.168.1.103',
@@ -31,38 +31,44 @@ describe('documents', () => {
       }, session);
       
       done();
+      sub.unsubscribe();
     });
       
   });
   
   afterEach(done => {
-    connection.closeChangeFeed();
-    connection.deleteDb(uuid).pipe(take(1)).subscribe((_deleted) => {
+    connection.reconfigure({trackChanges: false});
+    const sub = connection.deleteDb(uuid).pipe(take(1)).subscribe((_deleted) => {
       done();
+      sub.unsubscribe();
     });
     
   });
   
   test('list all', done => {
-    connection.all().pipe(take(1)).subscribe((all) => {
+    const sub = connection.all().pipe(take(1)).subscribe((all) => {
       const keys = Object.keys(all);
       expect(keys).toContain('total_rows');
       expect(keys).toContain('offset');
       expect(keys).toContain('rows');
       done();
+      sub.unsubscribe();
     })
   })
   
   test('create, edit, subscribe', done => {
     connection.doc({test1: 'test1'}).pipe(take(1)).subscribe((doc: any) => {
       expect(doc.test1).toBe('test1');
-      connection.doc(doc._id).pipe(skip(1), take(1)).subscribe((subDoc) => {
+      let sub2;
+      const sub = connection.doc(doc._id).pipe(skip(1), take(1)).subscribe((subDoc) => {
         expect(subDoc.field2).toBe('test2');
         done();
+        sub2.unsubscribe();
+        sub.unsubscribe();
       });
       
       doc.field2 = 'test2';
-      connection.doc(doc).pipe(take(1)).subscribe((doc2: any) => {
+      sub2 = connection.doc(doc).pipe(take(1)).subscribe((doc2: any) => {
         expect(doc2.field2).toBe('test2');
       });
       
@@ -71,13 +77,15 @@ describe('documents', () => {
   });
   
   test('delete', done => {
-    connection.doc({'to_be_deleted': true}).pipe(take(1)).subscribe((_x) => {
-      connection.delete([_x]).subscribe((resp) => {
+    const sub1 = connection.doc({'to_be_deleted': true}).pipe(take(1)).subscribe((_x) => {
+      const sub2 = connection.delete([_x]).subscribe((resp) => {
         for (let i = 0; i < resp.length; i++) {
           expect(resp[i].ok).toBe(true);
         }
         
         done();
+        sub1.unsubscribe();
+        sub2.unsubscribe();
       });
       
     });

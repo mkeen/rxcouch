@@ -103,7 +103,7 @@ export class CouchDB {
     nextIfChanged(this.trackChanges, rxCouchConfig.trackChanges);
   }
 
-  public closeChangeFeed() {
+  private closeChangeFeed() {
     this.changeFeedAbort.next(true);
   }
 
@@ -153,7 +153,9 @@ export class CouchDB {
 
       }
 
-    }).pipe(mergeAll());
+    }).pipe(mergeAll(), finalize(() => {
+      
+    }));
 
   }
 

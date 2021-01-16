@@ -25,21 +25,23 @@ describe('databases', () => {
   });
   
   afterEach(() => {
-    connection.closeChangeFeed();
+    connection.reconfigure({trackChanges: false});
   });
   
   test('create', done => {
-    connection.createDb(uuid).pipe(take(1)).subscribe((dbResult) => {
+    const sub = connection.createDb(uuid).pipe(take(1)).subscribe((dbResult) => {
       expect(dbResult.ok).toBe(true);
       done();
+      sub.unsubscribe();
     });
     
   });
   
   test('delete', done => {
-    connection.deleteDb(uuid).pipe(take(1)).subscribe((dbResult) => {
+    const sub = connection.deleteDb(uuid).pipe(take(1)).subscribe((dbResult) => {
       expect(dbResult.ok).toBe(true);
       done();
+      sub.unsubscribe();
     });
     
   });

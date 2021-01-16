@@ -1,9 +1,5 @@
-import { CouchDB, CouchDBDocument } from '../../src/rxcouch';
-import { CouchDBSession } from '../../src/couchdbsession';
-import { take, skip } from 'rxjs/operators';
-
-import { BehaviorSubject } from 'rxjs';
-import { AuthorizationBehavior } from '../../src/types';
+import { CouchDB } from '../../src/rxcouch';
+import { take } from 'rxjs/operators';
 
 import { session, host, port, ssl } from './helper';
 
@@ -36,17 +32,19 @@ describe('databases', () => {
   });
   
   afterEach(done => {
-    connection.closeChangeFeed();
-    connection.deleteDb(uuid).pipe(take(1)).subscribe((_deleted) => {
+    connection.reconfigure({trackChanges: false});
+    const sub = connection.deleteDb(uuid).pipe(take(1)).subscribe((_deleted) => {
       done();
+      sub.unsubscribe();
     });
     
   });
   
   test('apply security policy', done => {
-    connection.secureDb(uuid, {admins: { names: ['admin', 'mike'], roles: [] }, members: { names: [], roles: [] } }).pipe(take(1)).subscribe((securityResult) => {
+    const sub = connection.secureDb(uuid, {admins: { names: ['admin', 'mike'], roles: [] }, members: { names: [], roles: [] } }).pipe(take(1)).subscribe((securityResult) => {
       expect(securityResult.ok).toBe(true);
       done();
+      sub.unsubscribe();
     });
     
   });
