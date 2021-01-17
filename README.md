@@ -76,8 +76,6 @@ const couchDbConnection = new CouchDB(
 
 The big detail to note here is that the final argument passed to the CouchSession initializer is an `Observable`. In this example it's hardcoded. In a real-world implementation, you'll create an `Observable` that emits when a user submits a login form, or when a configuration value is read, and pass that `Observable` into the initializer.
 
-It's common and recommended to share a single session instance across several CouchDB instances.
-
 Since we're hardcoding the credentials `Observable` argument, the above example will result in an authentication attempt being made to the speficied CouchDB host (without using HTTPS) immediately.
 
 ### Getting Info About the Current Session
