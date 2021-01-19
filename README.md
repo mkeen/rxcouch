@@ -2,7 +2,7 @@
 
 `📀 Universal`
 
-RxJS powers this real-time CouchDB client written in TypeScript that runs in the browser or nodejs. The change feed is handled automatically. Everything's a `BehaviorSubject`, so you get two-way binding for free. Enough said.
+Real-time CouchDB client that runs in the browser or nodejs. The change feed is handled automatically. Everything's a `BehaviorSubject`, so you get two-way binding for free.
 
 ## Prerequisites
 
