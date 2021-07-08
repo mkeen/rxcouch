@@ -34,8 +34,8 @@ describe('databases', () => {
   afterEach(done => {
     connection.reconfigure({trackChanges: false});
     const sub = connection.deleteDb(uuid).pipe(take(1)).subscribe((_deleted) => {
-      done();
       sub.unsubscribe();
+      done();
     });
     
   });
@@ -43,8 +43,8 @@ describe('databases', () => {
   test('apply security policy', done => {
     const sub = connection.secureDb(uuid, {admins: { names: ['admin', 'mike'], roles: [] }, members: { names: [], roles: [] } }).pipe(take(1)).subscribe((securityResult) => {
       expect(securityResult.ok).toBe(true);
-      done();
       sub.unsubscribe();
+      done();
     });
     
   });

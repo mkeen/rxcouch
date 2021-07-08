@@ -1,5 +1,16 @@
 import { Observer, Observable, Subject, BehaviorSubject, combineLatest, of, Subscription, timer} from 'rxjs';
-import { distinctUntilChanged, take, map, mergeAll, tap, skip, takeUntil, debounceTime, finalize, filter } from 'rxjs/operators';
+import {
+  distinctUntilChanged,
+  take,
+  map,
+  mergeAll,
+  tap,
+  skip,
+  takeUntil,
+  finalize,
+  filter,
+  flatMap,
+} from 'rxjs/operators';
 
 import {
   FetchBehavior,
@@ -37,14 +48,16 @@ import { CouchDBDocumentCollection } from './couchdbdocumentcollection';
 
 export class CouchDB {
   public documents: CouchDBDocumentCollection = new CouchDBDocumentCollection();
-  private changeFeedAbort: Subject<boolean> = new Subject();
+
+  readonly databaseName: BehaviorSubject<string>;
+  readonly host: BehaviorSubject<string>;
+  readonly port: BehaviorSubject<number>;
+  readonly ssl: BehaviorSubject<boolean>;
+  readonly trackChanges: BehaviorSubject<boolean>;
+  readonly changeFeedAbort: Subject<boolean> = new Subject();
+
   private appDocChanges: CouchDBAppChangesSubscriptions = {};
   private changeFeedSubscription: Subscription | null = null;
-  private databaseName: BehaviorSubject<string>;
-  private host: BehaviorSubject<string>;
-  private port: BehaviorSubject<number>;
-  private ssl: BehaviorSubject<boolean>;
-  private trackChanges: BehaviorSubject<boolean>;
 
   constructor(
     rxCouchConfig: RxCouchConfig,
@@ -62,7 +75,6 @@ export class CouchDB {
     this.config()
       .pipe(
         distinctUntilChanged(),
-        debounceTime(0),
       ).subscribe((config: WatcherConfig) => {
         const idsEmpty = config[IDS].length === 0;
         if(idsEmpty || !config[TRACK_CHANGES]) {
@@ -84,7 +96,7 @@ export class CouchDB {
       this.changeFeedSubscription = null;
     }
 
-    this.changeFeedSubscription = this.changes(this.changeFeedAbort, config).subscribe((update) => {        
+    this.changeFeedSubscription = this.changes(this.changeFeedAbort, config).pipe(takeUntil(this.changeFeedAbort)).subscribe((update) => {
       if (this.documents.changed(update.doc)) {
         this.stopListeningForLocalChanges(update.doc._id);
         this.documents.doc(update.doc);
@@ -122,40 +134,23 @@ export class CouchDB {
   }
 
   public doc(document: CouchDBDocument | CouchDBPreDocument | string): BehaviorSubject<CouchDBDocument> {
-    return Observable.create((observer: Observer<BehaviorSubject<CouchDBDocument>>): void => {
-      if (typeof (document) === 'string') {
-        if (this.documents.isKnownDocument(document)) {
-          observer.next(this.documents.doc(document));
-          this.listenForLocalChanges(document);
-        } else {
-          this.getDocument(document, observer);
-        }
-
+    if (typeof (document) === 'string') {
+      if (this.documents.isKnownDocument(document)) {
+        this.listenForLocalChanges(document);
+        return this.documents.doc(document);
       } else {
-        if (this.documents.changed(document)) {
-          this.saveDocument(document).pipe(take(1)).subscribe((doc) => {
-            document._rev = doc.rev;
-            document._id = doc.id;
-            observer.next(this.documents.doc(<CouchDBDocument>document));
-          },
-
-          (err) => {
-            observer.error(err);
-          },
-
-          () => {
-            observer.complete();
-          });
-
-        } else {
-          observer.next(this.documents.doc(document._id));
-        }
-
+        return this.getDocument(document);
       }
 
-    }).pipe(mergeAll(), finalize(() => {
-      
-    }));
+    } else {
+      if (this.documents.changed(document)) {
+        return this.saveDocument(document).pipe(flatMap());
+
+      } else {
+        return this.documents.doc(document._id);
+      }
+
+    }
 
   }
 
@@ -222,27 +217,32 @@ export class CouchDB {
 
       }
 
-    }).pipe(finalize(
-      () => {
-        stopChanges.next(true);
-      }
-
-    ), filter(update => !(<any>update).last_seq));
+    }).pipe(
+      finalize(() => stopChanges.next(true)),
+      filter(update => !(<any>update).last_seq)
+    );
 
   }
 
-  public delete(docs: CouchDBDocument[]) {
-    return Observable.create((observer: Observer<CouchDBGenericResponse>): void => {
-      this.bulkModify(docs.map((doc) => Object.assign(doc, {_deleted: true})), observer);
-    });
-
+  public delete(docId: string, revId: string) {
+    return this.config().pipe(
+      filter(config => config[AUTHENTICATED]),
+      take(1),
+      map((config: WatcherConfig) => {
+        return this.httpRequestWithAuthRetry<CouchDBGenericResponse>(
+            config,
+            CouchUrls.documentDelete(config, docId, revId),
+            FetchBehavior.simple,
+            'DELETE'
+        )
+      }),
+      mergeAll(),
+      take(1),
+    );
   }
 
   public edit(docs: CouchDBDocument[]) {
-    return Observable.create((observer: Observer<CouchDBGenericResponse>): void => {
-      this.bulkModify(docs, observer);
-    });
-
+    return this.bulkModify(docs);
   }
 
   public all() {
@@ -261,7 +261,8 @@ export class CouchDB {
         )
 
       }),
-      mergeAll()
+      mergeAll(),
+      take(1),
     );
 
   }
@@ -283,7 +284,8 @@ export class CouchDB {
         )
 
       }),
-      mergeAll()
+      mergeAll(),
+      take(1),
     );
 
   }
@@ -305,7 +307,8 @@ export class CouchDB {
         )
 
       }),
-      mergeAll()
+      mergeAll(),
+      take(1),
     );
 
   }
@@ -328,7 +331,8 @@ export class CouchDB {
         );
 
       }),
-      mergeAll()
+      mergeAll(),
+      take(1),
     );
 
   }
@@ -350,22 +354,20 @@ export class CouchDB {
         );
 
       }),
-      mergeAll()
+      mergeAll(),
+      take(1),
     );
 
   }
 
-  public bulkModify(
-    docs: CouchDBDocument[],
-    observer: Observer<CouchDBGenericResponse> // make this api better. having to pass in an observable is weird. would
-  ): void {                                    // be better if this returned an observable that emitted the behaviorsubject
-    this.config().pipe(
+  public bulkModify(docs: CouchDBDocument[]): Observable<CouchDBGenericResponse[]> {
+    return this.config().pipe(
       filter(config => config[AUTHENTICATED]),
       take(1),
       map((config: WatcherConfig) => {
-        return this.httpRequestWithAuthRetry<CouchDBGenericResponse>(
+        return this.httpRequestWithAuthRetry<CouchDBGenericResponse[]>(
           config,
-          CouchUrls.documentDelete(
+          CouchUrls.bulkDocs(
             config
           ),
 
@@ -375,25 +377,20 @@ export class CouchDB {
         );
 
       }),
-      mergeAll()
-    ).subscribe((response: CouchDBGenericResponse) => {
-      this.stopListeningForLocalChanges(response.id);
-      this.documents.remove(response.id);
-      observer.next(response);
-      observer.complete();
-    });
+      mergeAll(),
+      take(1),
+    );
   
   }
 
   private getDocument(
     documentId: string,
-    observer: Observer<BehaviorSubject<CouchDBDocument>> // make this api better. having to pass in an observable is weird. would
-  ): void {                                              // be better if this returned an observable that emitted the behaviorsubject
-    this.config().pipe(
+  ): Observable<BehaviorSubject<CouchDBDocument>> {
+    return this.config().pipe(
       filter(config => config[AUTHENTICATED]),
       take(1),
       map((config: WatcherConfig) => {
-        return this.httpRequestWithAuthRetry<CouchDBDocumentRevisionResponse>(
+        return this.httpRequestWithAuthRetry<CouchDBDocument>(
           config,
           CouchUrls.document(
             config,
@@ -405,27 +402,17 @@ export class CouchDB {
         );
 
       }),
-      mergeAll()
-    ).subscribe((doc: any) => {
-      if (this.documents.isStoredCouchDBDocument(doc)) {
-        observer.next(this.documents.doc(doc));
-        this.listenForLocalChanges(doc._id);
-      } else {
-        // todo. use partial document as a find query and return result IF there is exactly one result. otherwise, error
-        observer.error(doc)
-      }
-
-      observer.complete();
-    },
-
-    (err) => observer.error(err),
-    
-    () => observer.complete());
+      mergeAll(),
+      take(1),
+      map((document: CouchDBDocument) => {
+        return this.documents.doc(document);
+      }),
+    )
   }
 
   private saveDocument(
     document: CouchDBDocument | CouchDBPreDocument
-  ): Observable<CouchDBDocumentRevisionResponse> {
+  ): Observable<BehaviorSubject<CouchDBDocument>> {
     return this.config().pipe(
       filter(config => config[AUTHENTICATED]),
       take(1),
@@ -443,7 +430,9 @@ export class CouchDB {
         );
 
       }),
-      mergeAll()
+      mergeAll(),
+      map((response: CouchDBDocumentRevisionResponse) => this.documents.doc(response.id)),
+      take(1)
     );
 
   }

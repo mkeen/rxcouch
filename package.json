@@ -20,7 +20,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "tests:integration:node": "jest"
+    "tests:integration:node": "jest --detectOpenHandles"
   },
   "author": "Mike Keen",
   "license": "ISC",

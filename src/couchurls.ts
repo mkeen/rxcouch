@@ -41,7 +41,13 @@ export namespace CouchUrls {
     return url;
   }
 
-  export function documentDelete(config: WatcherConfig): string {
+  export function documentDelete(config: WatcherConfig, docId: string, rev: string): string {
+    let url = `${prefix(config)}/${config[DATABASE_NAME]}/${docId}?rev=${rev}`;
+
+    return url;
+  }
+
+  export function bulkDocs(config: WatcherConfig): string {
     let url = `${prefix(config)}/${config[DATABASE_NAME]}/_bulk_docs`;
 
     return url;

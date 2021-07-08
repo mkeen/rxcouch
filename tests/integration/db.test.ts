@@ -1,9 +1,5 @@
-import { CouchDB, CouchDBDocument } from '../../src/rxcouch';
-import { CouchDBSession } from '../../src/couchdbsession';
+  import { CouchDB, CouchDBDocument } from '../../src/rxcouch';
 import { take, skip } from 'rxjs/operators';
-
-import { BehaviorSubject } from 'rxjs';
-import { AuthorizationBehavior } from '../../src/types';
 
 import { session, host, port, ssl, } from './helper';
 
@@ -13,19 +9,11 @@ describe('databases', () => {
 
   beforeAll(() => {
     uuid = Math.random().toString(36).replace(/[^a-z]+/g, '').substr(0, 11);
-  });
-
-  beforeEach(async () => {
     connection = new CouchDB({
       host,
       port,
       ssl,
     }, session);
-    
-  });
-  
-  afterEach(() => {
-    connection.reconfigure({trackChanges: false});
   });
   
   test('create', done => {
