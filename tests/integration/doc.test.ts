@@ -1,6 +1,6 @@
 import { CouchDB } from '../../src/rxcouch';
 import { zip } from 'rxjs';
-import { take, skip } from 'rxjs/operators';
+import { take, skip, flatMap } from 'rxjs/operators';
 
 import { BehaviorSubject } from 'rxjs';
 import { AuthorizationBehavior } from '../../src/types';
@@ -22,15 +22,15 @@ describe('documents', () => {
       ssl,
     }, session);
     
-    const sub = temp.createDb(uuid).pipe(take(1)).subscribe((_created) => {
+    temp.createDb(uuid).pipe(take(1)).subscribe((_created) => {
       connection = new CouchDB({
         dbName: uuid,
         host: '192.168.1.162',
         port: 5984,
-        ssl: false
+        ssl: false,
+        trackChanges: true,
       }, session);
 
-      sub.unsubscribe();
       done();
     });
       
@@ -38,41 +38,57 @@ describe('documents', () => {
   
   afterEach(done => {
     connection.reconfigure({trackChanges: false});
-    const sub = connection.deleteDb(uuid).pipe(take(1)).subscribe((_deleted) => {
-      sub.unsubscribe();
+    connection.deleteDb(uuid).pipe(take(1)).subscribe((_deleted) => {
       done();
     });
     
   });
   
   test('list all', done => {
-    const sub = connection.all().pipe(take(1)).subscribe((all) => {
+    connection.reconfigure({trackChanges: false});
+    connection.all().pipe(take(1)).subscribe((all) => {
       const keys = Object.keys(all);
       expect(keys).toContain('total_rows');
       expect(keys).toContain('offset');
       expect(keys).toContain('rows');
-      connection.reconfigure({trackChanges: false});
-      sub.unsubscribe();
       done();
     })
   })
   
-  test('create, edit, subscribe', done => {
-    connection.doc({test1: 'test1'}).pipe(take(1)).subscribe((doc: any) => {
-      console.log(doc)
-
+  test('create, subscribe, edit', async done => {
+    const test1 = 'test1';
+    const test2 = 'test2';
+    const test3 = 'test3';
+    const stream = await connection.doc({test1});
+    let base_rev;
+    stream.pipe(take(3)).subscribe(async (doc: any) => {
+      if (!doc.test2) {
+        base_rev = doc._rev;
+        expect(doc._id).toBeTruthy();
+        expect(doc._rev).toBeTruthy();
+        expect(doc.test1).toBe(test1);
+        expect(doc.test2).not.toBeDefined();
+        Object.assign(doc, {test2});
+        await (await connection.doc(doc)).pipe(take(1)).toPromise();
+      } else if (!doc.test3) {
+        expect(base_rev).toBeTruthy();
+        expect(base_rev).not.toBe(doc._rev);
+        expect(doc.test2).toBeDefined();
+        Object.assign(doc, {test3});
+        await (await connection.doc(doc)).pipe(take(1)).toPromise();
+      } else {
+        done();
+      }
       
     });
     
   });
   
-  test('delete', done => {
-    const sub1 = connection.doc({'to_be_deleted': true}).pipe(take(1)).subscribe((document) => {
-      const sub2 = connection.delete(document._id, document._rev).subscribe((resp) => {
+  test('delete', async done => {
+    connection.reconfigure({trackChanges: false});
+    (await connection.doc({'to_be_deleted': true})).pipe(take(1)).subscribe((document) => {
+      connection.delete(document._id, document._rev).subscribe((resp) => {
         expect(resp.ok).toBe(true);
-        connection.reconfigure({trackChanges: false});
-        sub1.unsubscribe();
-        sub2.unsubscribe();
         done();
       });
       
@@ -80,22 +96,22 @@ describe('documents', () => {
     
   });
 
-  test('bulk modify', done => {
+  test('bulk modify', async done => {
     const initialDocs = [
-      connection.doc({initial_document_value: true, static_document_value: true}).pipe(take(1)),
-      connection.doc({initial_document_value: true, static_document_value: true}).pipe(take(1)),
-      connection.doc({initial_document_value: true, static_document_value: true}).pipe(take(1)),
-      connection.doc({initial_document_value: true, static_document_value: true}).pipe(take(1)),
+      (await connection.doc({initial_document_value: true, static_document_value: true})).pipe(take(1)),
+      (await connection.doc({initial_document_value: true, static_document_value: true})).pipe(take(1)),
+      (await connection.doc({initial_document_value: true, static_document_value: true})).pipe(take(1)),
+      (await connection.doc({initial_document_value: true, static_document_value: true})).pipe(take(1)),
     ];
 
-    const sub1 = zip(...initialDocs).subscribe((initial_documents) => {
-      const changed_documents = initial_documents.map((initial_document) => {
+    zip(...initialDocs).pipe(take(1)).subscribe((initial_documents) => {
+      const changedDocs = initial_documents.map((initial_document) => {
         Object.assign(initial_document, { initial_document_value: false });
         //delete initial_document.static_document_value; // if this line uncommented, test will fail, because edits are not patches. todo: investigate
         return initial_document;
       });
 
-      connection.bulkModify(changed_documents).subscribe((changed) => {
+      connection.bulkModify(changedDocs).subscribe((changed) => {
         const changedIds: string[] = [];
         for(const {ok, rev, id} of changed) {
           expect(ok).toBe(true); // expect that the change succeeded
@@ -103,15 +119,15 @@ describe('documents', () => {
           changedIds.push(id);
         }
 
-        zip(...changedIds.map(changedId => connection.doc(changedId))).pipe(take(1)).subscribe((confirmed) => {
+        zip(...changedIds.map(async changedId => (await connection.doc(changedId)))).pipe(take(1)).subscribe((confirmed) => {
           expect(confirmed.length).toBe(initialDocs.length); // modified is same length as initial
-          for(const {initial_document_value, static_document_value} of confirmed) {
-            expect(initial_document_value).toBe(false); // intended value was changed
-            expect(static_document_value).toBe(true);
+          for(const docSub of confirmed) {
+            expect(docSub.value.initial_document_value).toBe(false); // intended value was changed
+            expect(docSub.value.static_document_value).toBe(true); // original value maintained
           }
 
           done();
-        })
+        });
 
       });
 

@@ -1,4 +1,4 @@
-import { Observer, Observable, Subject, BehaviorSubject, combineLatest, of, Subscription, timer} from 'rxjs';
+import { Observer, Observable, Subject, BehaviorSubject, combineLatest, of, Subscription, timer } from 'rxjs';
 import {
   distinctUntilChanged,
   take,
@@ -10,6 +10,7 @@ import {
   finalize,
   filter,
   flatMap,
+  first,
 } from 'rxjs/operators';
 
 import {
@@ -47,8 +48,7 @@ import { entityOrDefault, nextIfChanged } from './sugar';
 import { CouchDBDocumentCollection } from './couchdbdocumentcollection';
 
 export class CouchDB {
-  public documents: CouchDBDocumentCollection = new CouchDBDocumentCollection();
-
+  readonly documents: CouchDBDocumentCollection = new CouchDBDocumentCollection();
   readonly databaseName: BehaviorSubject<string>;
   readonly host: BehaviorSubject<string>;
   readonly port: BehaviorSubject<number>;
@@ -58,6 +58,7 @@ export class CouchDB {
 
   private appDocChanges: CouchDBAppChangesSubscriptions = {};
   private changeFeedSubscription: Subscription | null = null;
+  private docIdsListSubscription: Subscription | null = null;
 
   constructor(
     rxCouchConfig: RxCouchConfig,
@@ -90,20 +91,15 @@ export class CouchDB {
   }
 
   public configureChangeFeed(config: WatcherConfig) {
-    if (this.changeFeedSubscription) {
-      this.changeFeedAbort.next(true);
-      this.changeFeedSubscription.unsubscribe();
-      this.changeFeedSubscription = null;
+    if (!this.changeFeedSubscription) {
+      this.changeFeedSubscription = this.changes(this.changeFeedAbort, config).pipe(takeUntil(this.changeFeedAbort)).subscribe((update) => {
+        if (this.documents.changed(update.doc)) {
+          this.documents.doc(update.doc);
+        }
+  
+      });
+      
     }
-
-    this.changeFeedSubscription = this.changes(this.changeFeedAbort, config).pipe(takeUntil(this.changeFeedAbort)).subscribe((update) => {
-      if (this.documents.changed(update.doc)) {
-        this.stopListeningForLocalChanges(update.doc._id);
-        this.documents.doc(update.doc);
-        this.listenForLocalChanges(update.doc._id);
-      }
-
-    });
 
   }
 
@@ -130,24 +126,29 @@ export class CouchDB {
       this.trackChanges,
       this.couchSession.authenticated
     );
-
+  }
+  
+  public authedConfig(): Observable<WatcherConfig> {
+    return this.config().pipe(filter(config => config[AUTHENTICATED]));
+  }
+  
+  public singleAuthedConfig(): Observable<WatcherConfig> {
+    return this.authedConfig().pipe(take(1));
   }
 
-  public doc(document: CouchDBDocument | CouchDBPreDocument | string): BehaviorSubject<CouchDBDocument> {
+  public doc(document: CouchDBDocument | CouchDBPreDocument | string): Promise<BehaviorSubject<CouchDBDocument>> {
     if (typeof (document) === 'string') {
       if (this.documents.isKnownDocument(document)) {
-        this.listenForLocalChanges(document);
-        return this.documents.doc(document);
+        return of(this.documents.doc(document)).toPromise();
       } else {
-        return this.getDocument(document);
+        return this.getDocument(document).toPromise();
       }
 
     } else {
       if (this.documents.changed(document)) {
-        return this.saveDocument(document).pipe(flatMap());
-
+        return this.saveDocument(document).toPromise();
       } else {
-        return this.documents.doc(document._id);
+        return of(this.documents.doc(document._id)).toPromise();
       }
 
     }
@@ -156,9 +157,7 @@ export class CouchDB {
 
   public find(query: CouchDBFindQuery): Observable<CouchDBDocument[]> {
     return Observable.create((observer: Observer<CouchDBDocument[]>): void => {
-      this.config().pipe(
-        filter(config => config[AUTHENTICATED]),
-        take(1),
+      this.singleAuthedConfig().pipe(
         map((config: WatcherConfig) => {
           return this.httpRequestWithAuthRetry<CouchDBFindResponse>(
             config,
@@ -225,10 +224,8 @@ export class CouchDB {
   }
 
   public delete(docId: string, revId: string) {
-    return this.config().pipe(
-      filter(config => config[AUTHENTICATED]),
-      take(1),
-      map((config: WatcherConfig) => {
+    return this.singleAuthedConfig().pipe(
+      flatMap(config => {
         return this.httpRequestWithAuthRetry<CouchDBGenericResponse>(
             config,
             CouchUrls.documentDelete(config, docId, revId),
@@ -236,7 +233,6 @@ export class CouchDB {
             'DELETE'
         )
       }),
-      mergeAll(),
       take(1),
     );
   }
@@ -246,10 +242,8 @@ export class CouchDB {
   }
 
   public all() {
-    return this.config().pipe(
-      filter(config => config[AUTHENTICATED]),
-      take(1),
-      map((config: WatcherConfig) => {
+    return this.singleAuthedConfig().pipe(
+      flatMap(config => {
         return this.httpRequestWithAuthRetry<CouchDBGenericResponse>(
           config,
           CouchUrls._all_docs(
@@ -261,17 +255,14 @@ export class CouchDB {
         )
 
       }),
-      mergeAll(),
       take(1),
     );
 
   }
 
   public createDb(name: string) {
-    return this.config().pipe(
-      filter(config => config[AUTHENTICATED]),
-      take(1),
-      map((config: WatcherConfig) => {
+    return this.singleAuthedConfig().pipe(
+      flatMap((config: WatcherConfig) => {
         return this.httpRequestWithAuthRetry<CouchDBGenericResponse>(
           config,
           CouchUrls.database(
@@ -284,17 +275,14 @@ export class CouchDB {
         )
 
       }),
-      mergeAll(),
       take(1),
     );
 
   }
 
   public deleteDb(name: string) {
-    return this.config().pipe(
-      filter(config => config[AUTHENTICATED]),
-      take(1),
-      map((config: WatcherConfig) => {
+    return this.singleAuthedConfig().pipe(
+      flatMap((config: WatcherConfig) => {
         return this.httpRequestWithAuthRetry<CouchDBGenericResponse>(
           config,
           CouchUrls.database(
@@ -307,17 +295,14 @@ export class CouchDB {
         )
 
       }),
-      mergeAll(),
       take(1),
     );
 
   }
 
   public secureDb(name: string, securityObject: CouchDBSecurity) {
-    return this.config().pipe(
-      filter(config => config[AUTHENTICATED]),
-      take(1),
-      map((config: WatcherConfig) => {
+    return this.singleAuthedConfig().pipe(
+      flatMap((config: WatcherConfig) => {
         return this.httpRequestWithAuthRetry<CouchDBGenericResponse>(
           config,
           CouchUrls.databaseSecurity(
@@ -331,40 +316,31 @@ export class CouchDB {
         );
 
       }),
-      mergeAll(),
       take(1),
     );
 
   }
 
   public uuids(count: number = 1) {
-    return this.config().pipe(
-      filter(config => config[AUTHENTICATED]),
-      take(1),
-      map((config: WatcherConfig) => {
-        return this.httpRequestWithAuthRetry<CouchDBUUIDSResponse>(
+    return this.singleAuthedConfig().pipe(
+      flatMap(config => this.httpRequestWithAuthRetry<CouchDBUUIDSResponse>(
+        config,
+        CouchUrls.uuids(
           config,
-          CouchUrls.uuids(
-            config,
-            count
-          ),
+          count
+        ),
 
-          FetchBehavior.simple,
-          'GET'
-        );
-
-      }),
-      mergeAll(),
+        FetchBehavior.simple,
+        'GET'
+      )),
       take(1),
     );
 
   }
 
   public bulkModify(docs: CouchDBDocument[]): Observable<CouchDBGenericResponse[]> {
-    return this.config().pipe(
-      filter(config => config[AUTHENTICATED]),
-      take(1),
-      map((config: WatcherConfig) => {
+    return this.singleAuthedConfig().pipe(
+      flatMap(config => {
         return this.httpRequestWithAuthRetry<CouchDBGenericResponse[]>(
           config,
           CouchUrls.bulkDocs(
@@ -377,7 +353,6 @@ export class CouchDB {
         );
 
       }),
-      mergeAll(),
       take(1),
     );
   
@@ -386,10 +361,8 @@ export class CouchDB {
   private getDocument(
     documentId: string,
   ): Observable<BehaviorSubject<CouchDBDocument>> {
-    return this.config().pipe(
-      filter(config => config[AUTHENTICATED]),
-      take(1),
-      map((config: WatcherConfig) => {
+    return this.singleAuthedConfig().pipe(
+      flatMap(config => {
         return this.httpRequestWithAuthRetry<CouchDBDocument>(
           config,
           CouchUrls.document(
@@ -402,21 +375,16 @@ export class CouchDB {
         );
 
       }),
-      mergeAll(),
+      map(document => this.documents.doc(document)),
       take(1),
-      map((document: CouchDBDocument) => {
-        return this.documents.doc(document);
-      }),
     )
   }
 
   private saveDocument(
     document: CouchDBDocument | CouchDBPreDocument
   ): Observable<BehaviorSubject<CouchDBDocument>> {
-    return this.config().pipe(
-      filter(config => config[AUTHENTICATED]),
-      take(1),
-      map((config: WatcherConfig) => {
+    return this.singleAuthedConfig().pipe(
+      flatMap((config: WatcherConfig) => {
         return this.httpRequestWithAuthRetry<CouchDBDocumentRevisionResponse>(
           config,
           CouchUrls.document(
@@ -430,8 +398,7 @@ export class CouchDB {
         );
 
       }),
-      mergeAll(),
-      map((response: CouchDBDocumentRevisionResponse) => this.documents.doc(response.id)),
+      map(({ id: _id, rev: _rev }: CouchDBDocumentRevisionResponse) => this.documents.doc(Object.assign(document, { _id, _rev }))),
       take(1)
     );
 
@@ -644,33 +611,6 @@ export class CouchDB {
 
   private cookieForRequestHeader(cookie: string): string {
     return cookie.split(';')[0].trim();
-  }
-
-  private stopListeningForLocalChanges(doc_id: string): void {
-    if (this.appDocChanges[doc_id] !== undefined) {
-      this.appDocChanges[doc_id].unsubscribe();
-      delete this.appDocChanges[doc_id];
-    }
-
-  }
-
-  private listenForLocalChanges(doc_id: string): void {
-    if (this.appDocChanges[doc_id] === undefined) { // kind of a gross way to check if we're already listening. shouldn't be necessary.
-      this.appDocChanges[doc_id] = this.documents.doc(doc_id).pipe(skip(1)).subscribe((changedDoc: any) => {
-        if (doc_id !== changedDoc._id) {
-          console.warn('document mismatch. change ignored.'); // this is only here because its possible to change a doc id.
-          return;                                             // and i havent even attempted to handle that case yet.
-        }
-
-        if (this.documents.changed(changedDoc)) {
-          this.stopListeningForLocalChanges(changedDoc._id);
-          this.doc(changedDoc).pipe(take(1)).subscribe((_e: any) => { });
-        }
-
-      });
-
-    }
-
   }
 
 }

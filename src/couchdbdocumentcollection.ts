@@ -4,16 +4,11 @@ import { sha256 } from 'js-sha256';
 import * as _ from "lodash";
 
 export class CouchDBDocumentCollection {
-  public ids: BehaviorSubject<string[]> = new BehaviorSubject<string[]>([]);
-  private documents: CouchDBDocumentIndex = {};
-  private snapshots: CouchDBHashIndex = {};
+  readonly ids: BehaviorSubject<string[]> = new BehaviorSubject<string[]>([]);
+  readonly documents: CouchDBDocumentIndex = {};
+  readonly snapshots: CouchDBHashIndex = {};
 
   public changed(document: CouchDBDocument | CouchDBPreDocument): boolean {
-    // todo, dont let undefined get this far
-    if (!document) {
-      return false;
-    }
-
     const docCopy = JSON.parse(JSON.stringify(document));
 
     if (this.isPreDocument(docCopy)) {
@@ -27,10 +22,7 @@ export class CouchDBDocumentCollection {
       return true;
     }
 
-    return snapshot !== sha256(
-      JSON.stringify(docCopy)
-    );
-
+    return snapshot !== sha256(JSON.stringify(docCopy));
   }
 
   public snapshot(document: CouchDBDocument) {
@@ -44,7 +36,7 @@ export class CouchDBDocumentCollection {
   }
 
   public clear(): void {
-    this.documents = {};
+    for (var document in this.documents) delete this.documents[document];
     this.ids.next([]);
   }
 
